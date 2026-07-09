@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VNOX</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg0:#0c0c0c;--bg1:#111111;--bg2:#181818;--bg3:#202020;--bg4:#2a2a2a;
+  --accent:#ff6b35;--accent2:#e85d28;
+  --border:#222222;--border2:#2e2e2e;
+  --text1:#f0f2f5;--text2:#9ca3af;--text3:#4a5568;
+  --green:#4ade80;--red:#f87171;--yellow:#fbbf24;--teal:#5bbf9f;
+  --font:'IBM Plex Sans',sans-serif;--mono:'IBM Plex Mono',monospace;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--text1);font-family:var(--font);font-size:14px;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:4px}
+
+/* ═══ LAYOUT ═══ */
+.app{display:grid;grid-template-columns:56px 228px 1fr 252px;grid-template-rows:1fr 52px;height:100vh}
+
+/* ═══ RAIL ═══ */
+.rail{grid-column:1;grid-row:1/3;background:var(--bg1);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:10px 0 14px;gap:6px;overflow:hidden}
+.rail-logo{width:36px;height:36px;border-radius:10px;background:var(--accent);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:border-radius .2s,transform .1s;flex-shrink:0;margin-bottom:4px}
+.rail-logo:hover{border-radius:14px;transform:scale(1.06)}
+.rail-logo svg{width:18px;height:18px;fill:#fff}
+.rail-sep{width:28px;height:1px;background:var(--border);flex-shrink:0;margin:2px 0}
+.srv{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;cursor:pointer;transition:border-radius .2s,transform .1s;position:relative;flex-shrink:0}
+.srv::before{content:'';position:absolute;left:-8px;top:50%;transform:translateY(-50%);width:3px;border-radius:0 3px 3px 0;background:var(--text1);transition:height .15s;height:0}
+.srv:hover{border-radius:14px;transform:scale(1.05)}.srv:hover::before{height:8px}
+.srv.active{border-radius:14px}.srv.active::before{height:20px}
+.srv-a{background:#1e1e1e;color:#c88b5a;border:1px solid #2a2a2a}
+.srv-b{background:#1e1a1e;color:#b07cc6;border:1px solid #2a242a}
+.srv-add{background:transparent;color:var(--text3);font-size:18px;border:1px dashed var(--border2);margin-top:auto;margin-bottom:18px}
+.srv-add:hover{background:var(--bg2);color:var(--green);border-color:rgba(74,222,128,.3)}
+/* tooltip */
+[data-tip]{position:relative}
+[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:calc(100% + 12px);top:50%;transform:translateY(-50%);background:var(--bg4);color:var(--text1);font-size:12px;white-space:nowrap;padding:5px 10px;border-radius:6px;border:1px solid var(--border2);pointer-events:none;z-index:200}
+.rail-vnox{font-size:9px;font-weight:700;letter-spacing:.18em;color:var(--text3);font-family:var(--mono);margin-top:auto}
+
+/* ═══ CHANNELS ═══ */
+.channels{grid-column:2;grid-row:1;background:var(--bg1);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.srv-hdr{padding:14px 14px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
+.srv-hdr-name{font-weight:700;font-size:14px;color:var(--text1)}
+.srv-hdr-id{font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:2px}
+.ch-search{padding:8px 10px;flex-shrink:0}
+.ch-search-inner{display:flex;align-items:center;gap:6px;background:var(--bg0);border:1px solid var(--border);border-radius:6px;padding:5px 10px;transition:border-color .15s}
+.ch-search-inner:focus-within{border-color:var(--border2)}
+.ch-search-inner svg{width:12px;height:12px;fill:var(--text3);flex-shrink:0}
+.ch-search-input{background:none;border:none;outline:none;font-family:var(--font);font-size:12px;color:var(--text2);width:100%}
+.ch-search-input::placeholder{color:var(--text3)}
+.ch-scroll{flex:1;overflow-y:auto;padding:4px 8px 8px}
+.ch-sec-hdr{display:flex;align-items:center;gap:5px;padding:8px 6px 3px;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);cursor:pointer;border-radius:4px;transition:color .15s}
+.ch-sec-hdr:hover{color:var(--text2)}
+.ch-sec-hdr svg{width:11px;height:11px;fill:currentColor;flex-shrink:0}
+.ch-item{display:flex;align-items:center;gap:7px;padding:6px 6px;border-radius:5px;cursor:pointer;color:var(--text3);font-size:13px;font-weight:500;transition:background .1s,color .1s;position:relative}
+.ch-item:hover{background:var(--bg2);color:var(--text2)}
+.ch-item.active{background:var(--bg3);color:var(--text1)}
+.ch-item.active::before{content:'';position:absolute;left:-8px;top:4px;bottom:4px;width:2px;background:var(--accent);border-radius:0 2px 2px 0}
+.ch-icon{flex-shrink:0;width:16px;text-align:center;font-size:11px}
+.ch-badge{margin-left:auto;font-size:10px;font-family:var(--mono);padding:1px 5px;border-radius:8px;letter-spacing:.02em}
+.ch-badge.ping{color:var(--green);background:rgba(74,222,128,.08)}
+.ch-badge.unread{color:#fff;background:var(--accent);min-width:18px;text-align:center}
+.ch-badge.count{color:var(--text3);background:var(--bg3)}
+.vu-list{padding:2px 0 4px 20px}
+.vu-row{display:flex;align-items:center;gap:7px;padding:3px 6px;border-radius:5px;cursor:pointer;font-size:12px;color:var(--text3);transition:background .1s}
+.vu-row:hover{background:var(--bg2);color:var(--text2)}
+.vu-av{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;flex-shrink:0;position:relative;color:#fff}
+.vu-dot{width:7px;height:7px;border-radius:50%;position:absolute;bottom:-1px;right:-1px;border:1px solid var(--bg1)}
+.vu-speaking{font-size:8px;color:var(--green);margin-left:auto}
+
+/* ═══ USERBAR ═══ */
+.userbar{grid-column:2;grid-row:2;background:var(--bg1);border-right:1px solid var(--border);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 8px;gap:8px}
+.ub-av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;cursor:pointer;position:relative;color:#fff;transition:transform .15s}
+.ub-av:hover{transform:scale(1.08)}
+.ub-status{width:9px;height:9px;border-radius:50%;position:absolute;bottom:-1px;right:-1px;border:2px solid var(--bg1)}
+.ub-info{flex:1;min-width:0}
+.ub-name{font-size:12px;font-weight:600;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ub-sub{font-size:10px;color:var(--text3);font-family:var(--mono)}
+.ub-icons{display:flex;gap:2px}
+.ub-btn{width:26px;height:26px;border-radius:5px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);transition:background .15s,color .15s}
+.ub-btn:hover{background:var(--bg3);color:var(--text1)}
+.ub-btn.muted{color:var(--red)}
+.ub-btn svg{width:14px;height:14px;fill:currentColor}
+
+/* ═══ MAIN ═══ */
+.main{grid-column:3;grid-row:1/3;display:flex;flex-direction:column;background:var(--bg0);overflow:hidden}
+.main-hdr{height:44px;flex-shrink:0;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:8px;background:var(--bg0)}
+.mh-icon{font-size:14px;font-weight:700;color:var(--text3)}
+.mh-name{font-weight:600;font-size:14px;color:var(--text1)}
+.mh-sep{width:1px;height:14px;background:var(--border2)}
+.mh-desc{font-size:12px;color:var(--text3);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mh-actions{display:flex;gap:2px}
+.mh-btn{width:28px;height:28px;border-radius:5px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);transition:background .15s,color .15s}
+.mh-btn:hover{background:var(--bg2);color:var(--text1)}
+.mh-btn svg{width:14px;height:14px;fill:currentColor}
+
+/* Messages */
+.messages{flex:1;overflow-y:auto;padding:8px 0 4px}
+.day-sep{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:.06em}
+.day-sep::before,.day-sep::after{content:'';flex:1;height:1px;background:var(--border)}
+.sys-msg{display:flex;align-items:center;gap:10px;padding:6px 16px;font-size:11px;color:var(--text3);font-family:var(--mono)}
+.sys-msg::before,.sys-msg::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* Message groups — bubble style */
+.msg-group{padding:4px 16px;position:relative;transition:background .08s}
+.msg-group:hover{background:rgba(255,255,255,.015)}
+.msg-group.ns{margin-top:10px}
+.msg-group:hover .msg-actions{opacity:1;pointer-events:all}
+.msg-layout{display:flex;gap:12px;align-items:flex-start}
+.msg-av{width:34px;height:34px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;cursor:pointer;color:#fff;transition:transform .1s;margin-top:1px}
+.msg-av:hover{transform:scale(1.06)}
+.msg-cont{flex:1;min-width:0;background:var(--bg2);border:1px solid var(--border);border-radius:4px 12px 12px 12px;padding:8px 12px}
+.msg-hdr{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
+.msg-author{font-size:13px;font-weight:600;cursor:pointer}
+.msg-author:hover{text-decoration:underline}
+.msg-time{font-size:10px;color:var(--text3);font-family:var(--mono)}
+.msg-text{font-size:13px;color:var(--text2);line-height:1.6;word-break:break-word}
+.msg-text a{color:var(--teal);text-decoration:none}
+.msg-text a:hover{text-decoration:underline}
+/* continuation messages in same group */
+.msg-cont-inline{margin-left:46px;background:var(--bg2);border:1px solid var(--border);border-radius:4px 12px 12px 12px;padding:7px 12px;margin-top:3px}
+/* floating actions */
+.msg-actions{position:absolute;right:16px;top:-14px;background:var(--bg3);border:1px solid var(--border2);border-radius:7px;display:flex;gap:1px;padding:3px;opacity:0;pointer-events:none;transition:opacity .1s;z-index:10}
+.ma-btn{width:26px;height:26px;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;color:var(--text3);transition:background .1s,color .1s}
+.ma-btn:hover{background:var(--bg4);color:var(--text1)}
+/* sys msg inside group */
+.msg-group.sys-g .msg-cont{background:transparent;border:none;padding:0}
+.msg-group.sys-g .msg-av{background:var(--bg3) !important;color:var(--text3);font-size:14px}
+
+/* Input */
+.input-area{padding:0 12px 12px;flex-shrink:0}
+.input-box{background:var(--bg2);border:1px solid var(--border2);border-radius:9px;overflow:hidden;transition:border-color .2s}
+.input-box:focus-within{border-color:rgba(255,107,53,.3)}
+.input-top{display:flex;align-items:center;padding:0 14px;gap:10px}
+.input-ch{font-family:var(--mono);font-size:11px;color:var(--text3);flex-shrink:0;padding:11px 0;border-right:1px solid var(--border);padding-right:10px}
+.input-field{flex:1;background:none;border:none;outline:none;font-family:var(--font);font-size:13px;color:var(--text1);padding:11px 0}
+.input-field::placeholder{color:var(--text3)}
+.input-actions{display:flex;gap:3px;padding:0 10px 8px;border-top:1px solid var(--border);margin-top:0}
+.ia-btn{display:flex;align-items:center;gap:4px;padding:4px 8px;border-radius:5px;cursor:pointer;font-size:11px;color:var(--text3);transition:background .1s,color .1s}
+.ia-btn:hover{background:var(--bg3);color:var(--text2)}
+.ia-btn svg{width:12px;height:12px;fill:currentColor;flex-shrink:0}
+.ia-right{margin-left:auto;display:flex;align-items:center;gap:4px}
+.ia-send{background:var(--accent);color:#fff;border-radius:5px;padding:4px 12px;font-weight:600;font-size:11px;cursor:pointer;transition:background .15s}
+.ia-send:hover{background:var(--accent2)}
+.ia-enc{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text3);font-family:var(--mono);padding:4px 8px}
+.ia-enc svg{width:11px;height:11px;fill:var(--green)}
+
+/* ═══ MEMBERS ═══ */
+.members{grid-column:4;grid-row:1/3;background:var(--bg1);border-left:1px solid var(--border);overflow-y:auto;padding:14px 8px;transition:width .2s,opacity .2s}
+.members.hidden{display:none}
+.mb-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);padding:0 8px;margin-bottom:5px;font-family:var(--mono)}
+.mb-section{margin-bottom:18px}
+.mb-item{display:flex;align-items:center;gap:9px;padding:5px 8px;border-radius:6px;cursor:pointer;transition:background .1s}
+.mb-item:hover{background:var(--bg2)}
+.mb-av{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;position:relative;color:#fff}
+.mb-status{width:9px;height:9px;border-radius:50%;position:absolute;bottom:-1px;right:-1px;border:2px solid var(--bg1)}
+.mb-name{font-size:13px;font-weight:500;color:var(--text2);transition:color .1s}
+.mb-item:hover .mb-name{color:var(--text1)}
+.mb-tag{font-size:10px;color:var(--text3);margin-top:1px;font-family:var(--mono)}
+.st-on{background:var(--green)}.st-idle{background:var(--yellow)}.st-dnd{background:var(--red)}.st-off{background:var(--text3)}
+
+/* Avatar color palette — 8 saturated */
+.av1{background:#c0522a}.av2{background:#7a52c4}.av3{background:#3a9e5f}.av4{background:#c43a7a}.av5{background:#3a7ac4}.av6{background:#9e7a3a}.av7{background:#3a9e9e}.av8{background:#8a3ac4}
+
+/* ═══ VOICE OVERLAY ═══ */
+.voice-ov{position:fixed;inset:0;background:rgba(8,8,8,.96);backdrop-filter:blur(20px);display:none;z-index:50;flex-direction:column;align-items:center;justify-content:center;gap:24px}
+.voice-ov.show{display:flex;animation:fadeIn .18s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.vo-hdr{text-align:center}
+.vo-title{font-size:20px;font-weight:700;letter-spacing:.02em}
+.vo-meta{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:6px;font-size:11px;font-family:var(--mono);color:var(--text3)}
+.vo-meta-item{display:flex;align-items:center;gap:5px}
+.vo-meta-item .dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+/* Speaker grid — main speaker large, rest small */
+.vo-grid{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;max-width:640px;padding:0 24px}
+.vo-main{width:100%;max-width:500px;background:var(--bg2);border:2px solid var(--border2);border-radius:16px;padding:32px 24px;display:flex;flex-direction:column;align-items:center;gap:14px;transition:border-color .2s,box-shadow .2s;position:relative}
+.vo-main.speaking{border-color:rgba(74,222,128,.5);box-shadow:0 0 32px rgba(74,222,128,.1)}
+.vo-main-av{width:88px;height:88px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#fff;border:3px solid transparent;transition:border-color .2s}
+.vo-main.speaking .vo-main-av{border-color:var(--green)}
+.vo-main-name{font-size:16px;font-weight:600;color:var(--text1)}
+.vo-main-status{display:flex;align-items:center;gap:6px;font-size:11px;font-family:var(--mono);color:var(--text3)}
+.vo-badge{padding:2px 8px;border-radius:4px;border:1px solid var(--border2);font-size:10px;font-family:var(--mono)}
+.vo-small-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.vo-small{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:14px 20px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;transition:border-color .2s,background .15s;min-width:110px}
+.vo-small:hover{background:var(--bg3)}
+.vo-small.speaking{border-color:rgba(74,222,128,.4)}
+.vo-small-av{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;border:2px solid transparent;transition:border-color .2s}
+.vo-small.speaking .vo-small-av{border-color:var(--green)}
+.vo-small-name{font-size:12px;font-weight:600;color:var(--text2)}
+.vo-small-icons{display:flex;gap:4px}
+.vo-ico{width:18px;height:18px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;background:var(--bg3);color:var(--text3)}
+.vo-ico.muted{color:var(--red);background:rgba(248,113,113,.1)}
+/* Controls */
+.vo-controls{display:flex;gap:8px}
+.vo-btn{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;background:var(--bg2);border:1px solid var(--border2);transition:background .15s,border-color .15s,transform .1s}
+.vo-btn:hover{background:var(--bg3);transform:scale(1.06)}
+.vo-btn svg{width:16px;height:16px;fill:var(--text2)}
+.vo-btn.tog{background:rgba(248,113,113,.12);border-color:rgba(248,113,113,.3)}
+.vo-btn.tog svg{fill:var(--red)}
+.vo-btn.disc{background:var(--accent);border-color:var(--accent2)}
+.vo-btn.disc svg{fill:#fff}
+.vo-btn.disc:hover{background:var(--accent2)}
+
+/* ═══ SETTINGS OVERLAY ═══ */
+.settings-ov{position:fixed;inset:0;background:rgba(8,8,8,.7);backdrop-filter:blur(16px);display:none;z-index:60;align-items:center;justify-content:center}
+.settings-ov.show{display:flex;animation:fadeIn .18s}
+.s-modal{width:700px;max-height:88vh;background:var(--bg1);border:1px solid var(--border2);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,.6)}
+.s-hdr{height:52px;background:var(--bg0);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0}
+.s-hdr-logo{font-size:14px;font-weight:700;letter-spacing:.1em;color:var(--accent);font-family:var(--mono)}
+.s-hdr-node{font-size:11px;color:var(--text2);display:flex;align-items:center;gap:6px;font-family:var(--mono)}
+.s-hdr-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+.s-badge{font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid rgba(255,107,53,.25);background:rgba(255,107,53,.08);color:var(--accent);font-family:var(--mono)}
+.s-close{margin-left:auto;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);font-size:14px;transition:background .15s,color .15s}
+.s-close:hover{background:var(--bg3);color:var(--text1)}
+/* Tab nav */
+.s-tabs{display:flex;gap:2px;padding:12px 20px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg1)}
+.s-tab{display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:7px;font-size:13px;color:var(--text3);cursor:pointer;transition:background .1s,color .1s;font-weight:500}
+.s-tab:hover{background:var(--bg2);color:var(--text2)}
+.s-tab.active{background:var(--bg3);color:var(--text1)}
+.s-tab svg{width:14px;height:14px;fill:currentColor;flex-shrink:0}
+.s-content{flex:1;overflow-y:auto;padding:24px 28px}
+.pg{display:none}.pg.active{display:block}
+.sc-title{font-size:17px;font-weight:700;color:var(--text1);margin-bottom:3px}
+.sc-sub{font-size:11px;color:var(--text3);margin-bottom:20px;font-family:var(--mono)}
+.sc-group{margin-bottom:22px}
+.sc-gl{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border);padding-bottom:5px;margin-bottom:10px}
+.sc-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.025);gap:12px}
+.sc-rl{font-size:13px;color:var(--text2)}
+.sc-rs{font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--mono)}
+.s-select{background:var(--bg2);border:1px solid var(--border2);border-radius:6px;color:var(--text2);font-family:var(--font);font-size:12px;padding:6px 28px 6px 10px;outline:none;cursor:pointer;min-width:150px;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%234a5568' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;transition:border-color .15s}
+.s-select:focus{border-color:rgba(255,107,53,.4)}
+.s-input{background:var(--bg2);border:1px solid var(--border2);border-radius:6px;color:var(--text2);font-family:var(--font);font-size:12px;padding:6px 10px;outline:none;width:100%;max-width:260px;transition:border-color .15s,color .15s}
+.s-input:focus{border-color:rgba(255,107,53,.4);color:var(--text1)}
+/* Sliders */
+.s-slider{-webkit-appearance:none;width:160px;height:3px;border-radius:2px;background:var(--bg4);outline:none;cursor:pointer}
+.s-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);cursor:pointer;box-shadow:0 0 6px rgba(255,107,53,.4)}
+/* Toggle */
+.toggle{position:relative;width:34px;height:18px;cursor:pointer;flex-shrink:0}
+.toggle input{display:none}
+.t-track{width:34px;height:18px;border-radius:9px;background:var(--bg4);border:1px solid var(--border2);transition:background .15s,border-color .15s}
+.toggle input:checked+.t-track{background:rgba(255,107,53,.2);border-color:rgba(255,107,53,.35)}
+.t-thumb{position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;background:var(--text3);transition:left .15s cubic-bezier(.2,0,0,1.4),background .15s}
+.toggle input:checked~.t-thumb{left:19px;background:var(--accent)}
+/* Level bars */
+.lvl-wrap{display:flex;align-items:center;gap:10px}
+.lvl-bar{width:120px;height:3px;background:var(--bg4);border-radius:2px;overflow:hidden}
+.lvl-fill{height:100%;border-radius:2px;transition:width .1s}
+.lvl-fill.in{background:var(--accent)}.lvl-fill.out{background:var(--green)}
+.lvl-val{font-size:11px;color:var(--text3);font-family:var(--mono);min-width:36px}
+.key-badge{font-size:11px;color:var(--text3);border:1px solid var(--border2);padding:2px 8px;border-radius:4px;font-family:var(--mono);background:var(--bg2)}
+
+/* ═══ CONNECT SCREEN ═══ */
+.connect-scr{position:fixed;inset:0;background:var(--bg0);display:none;z-index:70;align-items:center;justify-content:center}
+.connect-scr.show{display:flex;animation:fadeIn .2s}
+.cn-bg{position:absolute;inset:0;background:radial-gradient(ellipse 50% 40% at 50% 50%,rgba(255,107,53,.05) 0%,transparent 70%);pointer-events:none}
+.cn-box{width:340px;position:relative;z-index:1}
+.cn-logo-wrap{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.cn-logo-icon{width:36px;height:36px;border-radius:10px;background:var(--accent);display:flex;align-items:center;justify-content:center}
+.cn-logo-icon svg{width:18px;height:18px;fill:#fff}
+.cn-logo-text{font-size:22px;font-weight:700;letter-spacing:.12em;color:var(--text1);font-family:var(--mono)}
+.cn-tagline{font-size:11px;color:var(--text3);margin-bottom:28px;font-family:var(--mono)}
+.cn-field{margin-bottom:14px}
+.cn-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;display:block;font-family:var(--mono)}
+.cn-input{width:100%;background:var(--bg1);border:1px solid var(--border2);border-radius:7px;color:var(--text1);font-family:var(--mono);font-size:13px;padding:10px 14px;outline:none;transition:border-color .15s}
+.cn-input:focus{border-color:rgba(255,107,53,.4)}
+.cn-row{display:flex;gap:8px;margin-top:20px}
+.cn-btn{flex:1;background:var(--accent);border:none;border-radius:7px;color:#fff;font-family:var(--font);font-size:13px;font-weight:600;padding:10px;cursor:pointer;transition:background .15s,transform .1s}
+.cn-btn:hover{background:var(--accent2);transform:translateY(-1px)}
+.cn-btn-ghost{background:var(--bg2);border:1px solid var(--border2);border-radius:7px;color:var(--text2);font-family:var(--font);font-size:13px;padding:10px 16px;cursor:pointer;transition:background .15s}
+.cn-btn-ghost:hover{background:var(--bg3)}
+.cn-recent{margin-top:20px;border-top:1px solid var(--border);padding-top:14px}
+.cn-recent-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;font-family:var(--mono)}
+.cn-srv{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:6px;cursor:pointer;transition:background .1s;border:1px solid transparent}
+.cn-srv:hover{background:var(--bg2);border-color:var(--border)}
+.cn-srv-av{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff}
+.cn-srv-name{font-size:13px;font-weight:600;color:var(--text2)}
+.cn-srv-addr{font-size:10px;color:var(--text3);font-family:var(--mono)}
+.cn-srv-ping{font-size:10px;font-family:var(--mono)}
+
+/* ═══ PROFILE CARD ═══ */
+.profile-ov{position:fixed;inset:0;background:rgba(8,8,8,.7);backdrop-filter:blur(12px);display:none;z-index:55;align-items:center;justify-content:center}
+.profile-ov.show{display:flex;animation:fadeIn .18s}
+.profile-card{width:300px;background:var(--bg1);border:1px solid var(--border2);border-radius:14px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.pc-banner{height:72px;background:linear-gradient(135deg,#1a1a1a,#2a2a2a);position:relative}
+.pc-banner::after{content:'';position:absolute;inset:0;background:rgba(255,107,53,.06)}
+.pc-av-wrap{position:absolute;bottom:-28px;left:16px}
+.pc-av{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;border:3px solid var(--bg1)}
+.pc-body{padding:36px 16px 16px}
+.pc-name{font-size:15px;font-weight:700;color:var(--text1)}
+.pc-tag{font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:2px}
+.pc-role{display:inline-flex;align-items:center;gap:5px;margin-top:8px;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;border:1px solid}
+.pc-info{margin-top:12px;border-top:1px solid var(--border);padding-top:10px}
+.pc-info-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px}
+.pc-info-l{color:var(--text3);font-family:var(--mono)}
+.pc-info-r{color:var(--text2)}
+.pc-actions{display:flex;gap:6px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.pc-btn{flex:1;padding:7px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;text-align:center;transition:background .15s;border:1px solid var(--border2);color:var(--text2);background:var(--bg2)}
+.pc-btn:hover{background:var(--bg3);color:var(--text1)}
+.pc-btn.primary{background:var(--accent);border-color:var(--accent2);color:#fff}
+.pc-btn.primary:hover{background:var(--accent2)}
+</style>
+</head>
+<body>
+
+<!-- ═══ CONNECT SCREEN ═══ -->
+<div class="connect-scr show" id="connectScr">
+  <div class="cn-bg"></div>
+  <div class="cn-box">
+    <div class="cn-logo-wrap">
+      <div class="cn-logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg></div>
+      <div class="cn-logo-text">VNOX</div>
+    </div>
+    <div class="cn-tagline">// secure voice &amp; text · quic/v1</div>
+    <div class="cn-field"><label class="cn-label">Address</label><input class="cn-input" type="text" value="nightcore.lnex" placeholder="server.address"></div>
+    <div class="cn-field"><label class="cn-label">Username</label><input class="cn-input" type="text" value="nekit" placeholder="username"></div>
+    <div class="cn-field"><label class="cn-label">Password</label><input class="cn-input" type="password" placeholder="passphrase"></div>
+    <div class="cn-row">
+      <button class="cn-btn" onclick="document.getElementById('connectScr').classList.remove('show')">Connect</button>
+      <button class="cn-btn-ghost">Keypair</button>
+    </div>
+    <div class="cn-recent">
+      <div class="cn-recent-label">Recent</div>
+      <div class="cn-srv" onclick="document.getElementById('connectScr').classList.remove('show')">
+        <div class="cn-srv-av av1">NC</div>
+        <div style="flex:1"><div class="cn-srv-name">nightcore community</div><div class="cn-srv-addr">nightcore.lnex</div></div>
+        <div class="cn-srv-ping" style="color:var(--green)">24ms</div>
+      </div>
+      <div class="cn-srv">
+        <div class="cn-srv-av av2">VD</div>
+        <div style="flex:1"><div class="cn-srv-name">void.lnex</div><div class="cn-srv-addr">void.lnex</div></div>
+        <div class="cn-srv-ping" style="color:var(--yellow)">81ms</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SETTINGS (modal overlay) ═══ -->
+<div class="settings-ov" id="settingsOv">
+  <div class="s-modal">
+    <div class="s-hdr">
+      <div class="s-hdr-logo">VNOX</div>
+      <div style="width:1px;height:16px;background:var(--border2)"></div>
+      <div class="s-hdr-node"><div class="s-hdr-dot"></div>nightcore.lnex</div>
+      <div class="s-badge">quic/v1</div>
+      <div class="s-close" onclick="document.getElementById('settingsOv').classList.remove('show')">✕</div>
+    </div>
+    <div class="s-tabs">
+      <div class="s-tab active" onclick="switchTab('voice',this)">
+        <svg viewBox="0 0 16 16"><path d="M5 3a3 3 0 0 1 6 0v5a3 3 0 0 1-6 0V3z"/><path d="M3.5 6.5A.5.5 0 0 1 4 7v1a4 4 0 0 0 8 0V7a.5.5 0 0 1 1 0v1a5 5 0 0 1-4.5 4.975V15h3a.5.5 0 0 1 0 1h-7a.5.5 0 0 1 0-1h3v-2.025A5 5 0 0 1 3 8V7a.5.5 0 0 1 .5-.5z"/></svg>Audio
+      </div>
+      <div class="s-tab" onclick="switchTab('identity',this)">
+        <svg viewBox="0 0 16 16"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm-5 6s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H3z"/></svg>Identity
+      </div>
+      <div class="s-tab" onclick="switchTab('appearance',this)">
+        <svg viewBox="0 0 16 16"><path d="M8 5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm4 3a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM5.5 7a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm.5 6a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/><path d="M16 8c0 3.15-1.866 2.585-3.567 2.07C11.42 9.763 10.465 9.5 10 9.5c-.943 0-2 .115-2 2.5a2.5 2.5 0 0 1-2.5 2.5C3.016 14.5 0 12.88 0 8a8 8 0 1 1 16 0z"/></svg>Appearance
+      </div>
+      <div class="s-tab" onclick="switchTab('network',this)">
+        <svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zM0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8z"/></svg>Network
+      </div>
+      <div class="s-tab" onclick="switchTab('advanced',this)">
+        <svg viewBox="0 0 16 16"><path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z"/></svg>Advanced
+      </div>
+    </div>
+    <div class="s-content">
+      <div class="pg active" id="pg-voice">
+        <div class="sc-title">Audio</div><div class="sc-sub">// input · output · encoding</div>
+        <div class="sc-group"><div class="sc-gl">Input</div>
+          <div class="sc-row"><div><div class="sc-rl">Microphone</div><div class="sc-rs">Capture device</div></div><select class="s-select"><option>Shure MV7</option><option>HyperX QuadCast</option><option>Built-in Mic</option></select></div>
+          <div class="sc-row"><div><div class="sc-rl">Input gain</div></div><div class="lvl-wrap"><input type="range" class="s-slider" min="0" max="100" value="72"><span class="lvl-val">72%</span></div></div>
+          <div class="sc-row"><div><div class="sc-rl">Input level</div></div><div class="lvl-wrap"><div class="lvl-bar"><div class="lvl-fill in" id="lvl1" style="width:72%"></div></div><span class="lvl-val" id="lvlv1">-8 dB</span></div></div>
+          <div class="sc-row"><div><div class="sc-rl">Noise gate</div><div class="sc-rs">Cut below threshold</div></div><label class="toggle"><input type="checkbox" checked><div class="t-track"></div><div class="t-thumb"></div></label></div>
+          <div class="sc-row"><div><div class="sc-rl">RNNoise</div><div class="sc-rs">ML noise suppression</div></div><label class="toggle"><input type="checkbox" checked><div class="t-track"></div><div class="t-thumb"></div></label></div>
+        </div>
+        <div class="sc-group"><div class="sc-gl">Encoding</div>
+          <div class="sc-row"><div><div class="sc-rl">Codec</div></div><select class="s-select"><option>Opus 48kHz</option><option>Opus 24kHz</option></select></div>
+          <div class="sc-row"><div><div class="sc-rl">Bitrate</div></div><select class="s-select"><option>96 kbps</option><option>64 kbps</option><option>128 kbps</option></select></div>
+          <div class="sc-row"><div><div class="sc-rl">FEC</div><div class="sc-rs">Forward error correction</div></div><label class="toggle"><input type="checkbox" checked><div class="t-track"></div><div class="t-thumb"></div></label></div>
+          <div class="sc-row"><div><div class="sc-rl">DTX</div><div class="sc-rs">Discontinuous tx</div></div><label class="toggle"><input type="checkbox"><div class="t-track"></div><div class="t-thumb"></div></label></div>
+        </div>
+        <div class="sc-group"><div class="sc-gl">Output</div>
+          <div class="sc-row"><div><div class="sc-rl">Device</div></div><select class="s-select"><option>SteelSeries Arctis</option><option>Built-in Output</option></select></div>
+          <div class="sc-row"><div><div class="sc-rl">Output volume</div></div><div class="lvl-wrap"><input type="range" class="s-slider" min="0" max="100" value="80"><span class="lvl-val">80%</span></div></div>
+          <div class="sc-row"><div><div class="sc-rl">Output level</div></div><div class="lvl-wrap"><div class="lvl-bar"><div class="lvl-fill out" id="lvl2" style="width:55%"></div></div><span class="lvl-val">-14 dB</span></div></div>
+        </div>
+      </div>
+      <div class="pg" id="pg-identity">
+        <div class="sc-title">Identity</div><div class="sc-sub">// display · keypair</div>
+        <div class="sc-group"><div class="sc-gl">Display</div>
+          <div class="sc-row"><div><div class="sc-rl">Username</div></div><input class="s-input" value="nekit"></div>
+          <div class="sc-row"><div><div class="sc-rl">Status</div></div><select class="s-select"><option>Online</option><option>Away</option><option>Do not disturb</option></select></div>
+        </div>
+        <div class="sc-group"><div class="sc-gl">Keypair</div>
+          <div class="sc-row"><div><div class="sc-rl">Public key</div><div class="sc-rs" style="font-family:var(--mono)">a1b2c3d4…9f0e</div></div></div>
+          <div class="sc-row"><div><div class="sc-rl">Fingerprint</div><div class="sc-rs" style="font-family:var(--mono)">SHA256:xK7m…</div></div></div>
+        </div>
+      </div>
+      <div class="pg" id="pg-appearance">
+        <div class="sc-title">Appearance</div><div class="sc-sub">// theme · density</div>
+        <div class="sc-group"><div class="sc-gl">Theme</div>
+          <div class="sc-row"><div><div class="sc-rl">Base theme</div></div><select class="s-select"><option>Dark Graphite</option></select></div>
+          <div class="sc-row"><div><div class="sc-rl">Accent color</div></div><input type="color" value="#ff6b35" style="width:36px;height:28px;border:none;border-radius:5px;cursor:pointer;background:none"></div>
+          <div class="sc-row"><div><div class="sc-rl">Compact messages</div></div><label class="toggle"><input type="checkbox"><div class="t-track"></div><div class="t-thumb"></div></label></div>
+        </div>
+      </div>
+      <div class="pg" id="pg-network">
+        <div class="sc-title">Network</div><div class="sc-sub">// transport · diagnostics</div>
+        <div class="sc-group"><div class="sc-gl">Transport</div>
+          <div class="sc-row"><div><div class="sc-rl">Protocol</div></div><select class="s-select"><option>QUIC (LNEx v1)</option><option>TCP fallback</option></select></div>
+          <div class="sc-row"><div><div class="sc-rl">RTT</div></div><span style="font-family:var(--mono);font-size:12px;color:var(--green)">24ms</span></div>
+          <div class="sc-row"><div><div class="sc-rl">Packet loss</div></div><span style="font-family:var(--mono);font-size:12px;color:var(--text3)">0.0%</span></div>
+          <div class="sc-row"><div><div class="sc-rl">Jitter</div></div><span style="font-family:var(--mono);font-size:12px;color:var(--text3)">1.2ms</span></div>
+        </div>
+      </div>
+      <div class="pg" id="pg-advanced">
+        <div class="sc-title">Advanced</div><div class="sc-sub">// debug · build</div>
+        <div class="sc-group"><div class="sc-gl">Debug</div>
+          <div class="sc-row"><div><div class="sc-rl">Show packet stats</div></div><label class="toggle"><input type="checkbox"><div class="t-track"></div><div class="t-thumb"></div></label></div>
+          <div class="sc-row"><div><div class="sc-rl">Verbose logging</div></div><label class="toggle"><input type="checkbox"><div class="t-track"></div><div class="t-thumb"></div></label></div>
+        </div>
+        <div class="sc-group"><div class="sc-gl">Build</div>
+          <div class="sc-row"><div><div class="sc-rl">Version</div></div><span class="key-badge">0.4.1-dev</span></div>
+          <div class="sc-row"><div><div class="sc-rl">Runtime</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3)">Tokio 1.x · CPAL</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ VOICE OVERLAY ═══ -->
+<div class="voice-ov" id="voiceOv">
+  <div class="vo-hdr">
+    <div class="vo-title">Lounge</div>
+    <div class="vo-meta">
+      <div class="vo-meta-item"><div class="dot"></div><span style="color:var(--green)">Excellent</span></div>
+      <span style="color:var(--border2)">·</span>
+      <span style="color:var(--green)">24ms</span><span style="color:var(--text3)">rtt</span>
+      <span style="color:var(--border2)">·</span>
+      <span>Opus 48kHz</span>
+      <span style="color:var(--border2)">·</span>
+      <span style="color:var(--text3)">0.0% loss</span>
+    </div>
+  </div>
+  <div class="vo-grid">
+    <!-- Main speaker (large) -->
+    <div class="vo-main speaking" id="voMain">
+      <div class="vo-main-av av1" id="voMainAv">NK</div>
+      <div class="vo-main-name" id="voMainName">nekit</div>
+      <div class="vo-main-status">
+        <div class="vo-badge" style="color:var(--green);border-color:rgba(74,222,128,.2);background:rgba(74,222,128,.05)">speaking</div>
+        <div class="vo-badge" style="color:var(--text3)">admin</div>
+        <div class="vo-badge" style="color:var(--accent);border-color:rgba(255,107,53,.2)">🔒 E2E</div>
+      </div>
+    </div>
+    <!-- Secondary speakers (small) -->
+    <div class="vo-small-row">
+      <div class="vo-small" onclick="focusUser('sylvans','av2','SY')">
+        <div class="vo-small-av av2">SY</div>
+        <div class="vo-small-name">sylvans</div>
+        <div class="vo-small-icons"><div class="vo-ico muted">🎤</div><div class="vo-ico">🎧</div></div>
+      </div>
+      <div class="vo-small" onclick="focusUser('morfey','av3','MF')">
+        <div class="vo-small-av av3">MF</div>
+        <div class="vo-small-name">morfey</div>
+        <div class="vo-small-icons"><div class="vo-ico">🎤</div><div class="vo-ico">🎧</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="vo-controls">
+    <div class="vo-btn tog" id="voMicBtn" title="Muted" onclick="this.classList.toggle('tog')">
+      <svg viewBox="0 0 16 16"><path d="M6.717 3.55A.5.5 0 0 1 7 4v8a.5.5 0 0 1-.812.39L3.825 10.5H1.5A.5.5 0 0 1 1 10V6a.5.5 0 0 1 .5-.5h2.325L6.188 3.61a.5.5 0 0 1 .53-.06z"/><path d="M10.707 11.182A4.486 4.486 0 0 0 12.025 8a4.486 4.486 0 0 0-1.318-3.182L9.99 5.525A3.489 3.489 0 0 1 11.025 8 3.49 3.49 0 0 1 9.99 10.475l.717.707z"/></svg>
+    </div>
+    <div class="vo-btn" title="Headphones" onclick="this.classList.toggle('tog')">
+      <svg viewBox="0 0 16 16"><path d="M8 3a5 5 0 0 0-5 5v1h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a6 6 0 1 1 12 0v5a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1V8a5 5 0 0 0-5-5z"/></svg>
+    </div>
+    <div class="vo-btn" title="Screen share">
+      <svg viewBox="0 0 16 16"><path d="M0 4s0-2 2-2h12s2 0 2 2v6s0 2-2 2h-4c0 .667.083 1.167.25 1.5H11a.5.5 0 0 1 0 1H5a.5.5 0 0 1 0-1h.75c.167-.333.25-.833.25-1.5H2s-2 0-2-2V4zm1.398-.855a.758.758 0 0 0-.254.302A1.46 1.46 0 0 0 1 4.01V10c0 .325.078.502.145.602.07.105.17.188.302.254a1.464 1.464 0 0 0 .538.143L2.01 11H14c.325 0 .502-.078.602-.145a.758.758 0 0 0 .254-.302 1.464 1.464 0 0 0 .143-.538L15 9.99V4c0-.325-.078-.502-.145-.602a.757.757 0 0 0-.302-.254A1.46 1.46 0 0 0 13.99 3H2c-.325 0-.502.078-.602.145z"/></svg>
+    </div>
+    <div class="vo-btn" title="Camera" onclick="this.classList.toggle('tog')">
+      <svg viewBox="0 0 16 16"><path d="M0 5a2 2 0 0 1 2-2h7.5a2 2 0 0 1 1.983 1.738l1.482-1.482A.5.5 0 0 1 14 3.5v9a.5.5 0 0 1-.85.354l-1.481-1.481A2 2 0 0 1 9.5 13H2a2 2 0 0 1-2-2V5z"/></svg>
+    </div>
+    <div class="vo-btn disc" title="Disconnect" onclick="document.getElementById('voiceOv').classList.remove('show')">
+      <svg viewBox="0 0 16 16" style="fill:#fff"><path d="M1.166 4.25c.08.03.15.08.2.14.8.5.15 1.07.15 1.14l-.4 1.22a1.1 1.1 0 0 0 .17 1.01l.06.08c.3.4.77.63 1.26.63h.87a1.1 1.1 0 0 0 .87-.43l.46-.62a.5.5 0 0 1 .4-.2h2a.5.5 0 0 1 .4.2l.46.62c.2.27.52.43.87.43h.87c.49 0 .96-.23 1.26-.63l.06-.08a1.1 1.1 0 0 0 .17-1.01l-.4-1.22c0-.07.07-.64.15-1.14.05-.06.12-.11.2-.14.34-.12.54-.47.46-.82-.27-1.2-1.6-2-3.3-2.12A15.3 15.3 0 0 0 8 2c-.83 0-1.63.05-2.33.14C4.04 2.27 2.7 3.07 2.43 4.27c-.08.35.12.7.46.82l.27.14z"/></svg>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PROFILE CARD ═══ -->
+<div class="profile-ov" id="profileOv">
+  <div class="profile-card">
+    <div class="pc-banner"><div class="pc-av-wrap"><div class="pc-av av1" id="pcAv">NK</div></div></div>
+    <div class="pc-body">
+      <div class="pc-name" id="pcName">nekit</div>
+      <div class="pc-tag" id="pcTag">nekit#0001 · nightcore.lnex</div>
+      <div class="pc-role" id="pcRole" style="color:#fb923c;border-color:rgba(251,146,60,.2);background:rgba(251,146,60,.05)">Admin</div>
+      <div class="pc-info">
+        <div class="pc-info-row"><span class="pc-info-l">status</span><span class="pc-info-r" style="color:var(--green)">● Online</span></div>
+        <div class="pc-info-row"><span class="pc-info-l">rtt</span><span class="pc-info-r" style="font-family:var(--mono)">24ms</span></div>
+        <div class="pc-info-row"><span class="pc-info-l">joined</span><span class="pc-info-r">Mar 2025</span></div>
+        <div class="pc-info-row"><span class="pc-info-l">encryption</span><span class="pc-info-r" style="color:var(--green)">🔒 E2E</span></div>
+      </div>
+      <div class="pc-actions">
+        <div class="pc-btn primary">Message</div>
+        <div class="pc-btn">Voice Invite</div>
+        <div class="pc-btn">Mute</div>
+      </div>
+    </div>
+  </div>
+  <div style="position:absolute;inset:0;z-index:-1" onclick="document.getElementById('profileOv').classList.remove('show')"></div>
+</div>
+
+<!-- ═══ MAIN APP ═══ -->
+<div class="app">
+
+  <!-- RAIL -->
+  <div class="rail">
+    <div class="rail-logo" data-tip="VNOX" onclick="document.getElementById('connectScr').classList.add('show')">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+    </div>
+    <div class="rail-sep"></div>
+    <div class="srv srv-a active" data-tip="nightcore.lnex">NC</div>
+    <div class="srv srv-b" data-tip="void.lnex">VD</div>
+    <div class="rail-sep"></div>
+    <div class="srv srv-add" data-tip="Add server">+</div>
+    <div class="rail-vnox">VNOX</div>
+  </div>
+
+  <!-- CHANNELS -->
+  <div class="channels">
+    <div class="srv-hdr">
+      <div class="srv-hdr-name">nightcore community</div>
+      <div class="srv-hdr-id">lnex://nc.a1b2c3d4</div>
+    </div>
+    <div class="ch-search">
+      <div class="ch-search-inner">
+        <svg viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/></svg>
+        <input class="ch-search-input" placeholder="Search channels…">
+      </div>
+    </div>
+    <div class="ch-scroll">
+      <div class="ch-sec-hdr">
+        <svg viewBox="0 0 16 16"><path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v13.5a.5.5 0 0 1-.777.416L8 13.101l-5.223 2.815A.5.5 0 0 1 2 15.5V2zm2-1a1 1 0 0 0-1 1v12.566l4.723-2.482a.5.5 0 0 1 .554 0L13 14.566V2a1 1 0 0 0-1-1H4z"/></svg>
+        TEXT
+      </div>
+      <div class="ch-item active"><span class="ch-icon">#</span><span>general</span><span class="ch-badge ping">24ms</span></div>
+      <div class="ch-item"><span class="ch-icon">#</span><span>announcements</span><span class="ch-badge unread">3</span></div>
+      <div class="ch-item"><span class="ch-icon">#</span><span>tech-support</span><span class="ch-badge unread">1</span></div>
+      <div class="ch-item"><span class="ch-icon">#</span><span>off-topic</span></div>
+      <div class="ch-item"><span class="ch-icon">#</span><span>music-sharing</span></div>
+      <div class="ch-sec-hdr" style="margin-top:6px">
+        <svg viewBox="0 0 16 16"><path d="M5 3a3 3 0 0 1 6 0v5a3 3 0 0 1-6 0V3z"/><path d="M3.5 6.5A.5.5 0 0 1 4 7v1a4 4 0 0 0 8 0V7a.5.5 0 0 1 1 0v1a5 5 0 0 1-4.5 4.975V15h3a.5.5 0 0 1 0 1h-7a.5.5 0 0 1 0-1h3v-2.025A5 5 0 0 1 3 8V7a.5.5 0 0 1 .5-.5z"/></svg>
+        VOICE
+      </div>
+      <div class="ch-item"><span class="ch-icon" style="font-size:9px;color:var(--text3)">▷</span><span>Lobby</span></div>
+      <div class="ch-item" style="color:var(--text2)" onclick="document.getElementById('voiceOv').classList.add('show')">
+        <span class="ch-icon" style="font-size:9px;color:var(--green)">▶</span><span>Lounge</span><span class="ch-badge count">3</span>
+      </div>
+      <div class="vu-list">
+        <div class="vu-row"><div class="vu-av av1">NK<div class="vu-dot st-on"></div></div><span>nekit</span><span class="vu-speaking">●</span></div>
+        <div class="vu-row"><div class="vu-av av2">SY<div class="vu-dot st-on"></div></div><span>sylvans</span></div>
+        <div class="vu-row"><div class="vu-av av3">MF<div class="vu-dot st-on"></div></div><span>morfey</span></div>
+      </div>
+      <div class="ch-item"><span class="ch-icon" style="font-size:9px;color:var(--text3)">▷</span><span>Gaming</span></div>
+      <div class="ch-item"><span class="ch-icon" style="font-size:9px;color:var(--text3)">▷</span><span>Music</span></div>
+      <div class="ch-item"><span class="ch-icon" style="font-size:9px;color:var(--text3)">▷</span><span>AFK</span></div>
+    </div>
+  </div>
+
+  <!-- USERBAR -->
+  <div class="userbar">
+    <div class="ub-av av1" onclick="showProfile('nekit','av1','NK','Admin','admin')">NK<div class="ub-status st-on"></div></div>
+    <div class="ub-info">
+      <div class="ub-name">nekit</div>
+      <div class="ub-sub"><span style="color:var(--green)">24ms</span> · 0.0%</div>
+    </div>
+    <div class="ub-icons">
+      <div class="ub-btn muted" title="Muted" onclick="this.classList.toggle('muted')">
+        <svg viewBox="0 0 16 16"><path d="M6.717 3.55A.5.5 0 0 1 7 4v8a.5.5 0 0 1-.812.39L3.825 10.5H1.5A.5.5 0 0 1 1 10V6a.5.5 0 0 1 .5-.5h2.325L6.188 3.61a.5.5 0 0 1 .53-.06z"/><path d="M10.707 11.182A4.486 4.486 0 0 0 12.025 8a4.486 4.486 0 0 0-1.318-3.182L9.99 5.525A3.489 3.489 0 0 1 11.025 8 3.49 3.49 0 0 1 9.99 10.475l.717.707z"/></svg>
+      </div>
+      <div class="ub-btn" title="Deafen" onclick="this.classList.toggle('muted')">
+        <svg viewBox="0 0 16 16"><path d="M8 3a5 5 0 0 0-5 5v1h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a6 6 0 1 1 12 0v5a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1V8a5 5 0 0 0-5-5z"/></svg>
+      </div>
+      <div class="ub-btn" title="Settings" onclick="document.getElementById('settingsOv').classList.add('show')">
+        <svg viewBox="0 0 16 16"><path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CHAT -->
+  <div class="main">
+    <div class="main-hdr">
+      <span class="mh-icon">#</span>
+      <span class="mh-name">general</span>
+      <div class="mh-sep"></div>
+      <span class="mh-desc">Общий чат для всех участников сервера.</span>
+      <div class="mh-actions">
+        <div class="mh-btn" title="Pinned"><svg viewBox="0 0 16 16"><path d="M4.146.146A.5.5 0 0 1 4.5 0h7a.5.5 0 0 1 .5.5c0 .68-.342 1.174-.646 1.479-.126.125-.25.224-.354.298v4.431l.078.048c.203.127.476.314.751.555C12.36 7.775 13 8.527 13 9.5a.5.5 0 0 1-.5.5h-4v4.5c0 .276-.224 2-.5 2s-.5-1.724-.5-2V10h-4a.5.5 0 0 1-.5-.5c0-.973.64-1.725 1.17-2.189A5.921 5.921 0 0 1 5 6.708V2.277a2.77 2.77 0 0 1-.354-.298C4.342 1.674 4 1.179 4 .5a.5.5 0 0 1 .146-.354z"/></svg></div>
+        <div class="mh-btn" title="Search"><svg viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/></svg></div>
+        <div class="mh-btn" title="Toggle members" onclick="toggleMb()"><svg viewBox="0 0 16 16"><path d="M15 14s1 0 1-1-1-4-5-4-5 3-5 4 1 1 1 1h8zm-7.978-1A.261.261 0 0 1 7 12.996c.001-.264.167-1.03.76-1.72C8.312 10.629 9.282 10 11 10c1.717 0 2.687.63 3.24 1.276.593.69.758 1.457.76 1.72l-.008.002-.014.002H7.022zM11 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm3-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM6.936 9.28a5.88 5.88 0 0 0-1.23-.247A7.35 7.35 0 0 0 5 9c-4 0-5 3-5 4 0 .667.333 1 1 1h4.216A2.238 2.238 0 0 1 5 13c0-1.01.377-2.042 1.09-2.904.243-.294.526-.569.846-.816zM4.92 10A5.493 5.493 0 0 0 4 13H1c0-.26.164-1.03.76-1.724.545-.636 1.492-1.256 3.16-1.275zM1.5 5.5a3 3 0 1 1 6 0 3 3 0 0 1-6 0zm3-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg></div>
+      </div>
+    </div>
+    <div class="messages" id="msgs">
+      <div class="sys-msg">connected · nightcore.lnex · quic/v1</div>
+      <!-- Group 1: nekit (2 messages) -->
+      <div class="msg-group ns">
+        <div class="msg-layout">
+          <div class="msg-av av1" onclick="showProfile('nekit','av1','NK','Admin','admin')">NK</div>
+          <div class="msg-cont">
+            <div class="msg-hdr"><span class="msg-author" style="color:#c88b5a" onclick="showProfile('nekit','av1','NK','Admin','admin')">nekit</span><span class="msg-time">Сегодня, 14:32</span></div>
+            <div class="msg-text">Всем привет! Как у вас дела?</div>
+          </div>
+        </div>
+        <div class="msg-actions"><div class="ma-btn">↩</div><div class="ma-btn">☺</div><div class="ma-btn">⎘</div></div>
+      </div>
+      <!-- Group 2: morfey -->
+      <div class="msg-group ns">
+        <div class="msg-layout">
+          <div class="msg-av av4" onclick="showProfile('morfey','av4','MF','Admin','admin')">MF</div>
+          <div class="msg-cont">
+            <div class="msg-hdr"><span class="msg-author" style="color:#c43a7a" onclick="showProfile('morfey','av4','MF','Admin','admin')">morfey</span><span class="msg-time">14:33</span></div>
+            <div class="msg-text">Привет! Всё отлично, тестирую новый клиент 👌</div>
+          </div>
+        </div>
+        <div class="msg-actions"><div class="ma-btn">↩</div><div class="ma-btn">☺</div><div class="ma-btn">⎘</div></div>
+      </div>
+      <!-- Group 3: sylvans -->
+      <div class="msg-group ns">
+        <div class="msg-layout">
+          <div class="msg-av av2" onclick="showProfile('sylvans','av2','SY','Moderator','moderator')">SY</div>
+          <div class="msg-cont">
+            <div class="msg-hdr"><span class="msg-author" style="color:#9e7a9e" onclick="showProfile('sylvans','av2','SY','Moderator','moderator')">sylvans</span><span class="msg-time">14:34</span></div>
+            <div class="msg-text">Звук просто огонь, спасибо за апдейт!</div>
+          </div>
+        </div>
+        <div class="msg-actions"><div class="ma-btn">↩</div><div class="ma-btn">☺</div><div class="ma-btn">⎘</div></div>
+      </div>
+      <!-- Group 4: nekit (2 messages grouped) -->
+      <div class="msg-group ns">
+        <div class="msg-layout">
+          <div class="msg-av av1" onclick="showProfile('nekit','av1','NK','Admin','admin')">NK</div>
+          <div class="msg-cont">
+            <div class="msg-hdr"><span class="msg-author" style="color:#c88b5a">nekit</span><span class="msg-time">14:35</span></div>
+            <div class="msg-text">Рад, что нравится!</div>
+          </div>
+        </div>
+        <div class="msg-actions"><div class="ma-btn">↩</div><div class="ma-btn">☺</div><div class="ma-btn">⎘</div></div>
+      </div>
+      <div class="msg-group">
+        <div class="msg-cont-inline">
+          <div class="msg-text">Не забывайте читать <a href="#">#announcements</a> — важные апдейты по протоколу.</div>
+        </div>
+        <div class="msg-actions"><div class="ma-btn">↩</div><div class="ma-btn">☺</div><div class="ma-btn">⎘</div></div>
+      </div>
+      <div class="day-sep">today</div>
+      <!-- System event -->
+      <div class="msg-group ns sys-g">
+        <div class="msg-layout">
+          <div class="msg-av" style="background:var(--bg3);color:var(--text3);font-size:13px">⚙</div>
+          <div class="msg-cont">
+            <div class="msg-hdr"><span class="msg-author" style="color:var(--text3)">system</span><span class="msg-time">14:36</span></div>
+            <div class="msg-text" style="color:var(--text3);font-family:var(--mono);font-size:11px">Guest_42 joined · lnex://nc.a1b2c3d4</div>
+          </div>
+        </div>
+      </div>
+      <!-- Group 5: Guest_42 -->
+      <div class="msg-group ns">
+        <div class="msg-layout">
+          <div class="msg-av av6">G4</div>
+          <div class="msg-cont">
+            <div class="msg-hdr"><span class="msg-author" style="color:#9e7a3a">Guest_42</span><span class="msg-time">14:36</span></div>
+            <div class="msg-text">Всем ку!</div>
+          </div>
+        </div>
+        <div class="msg-actions"><div class="ma-btn">↩</div><div class="ma-btn">☺</div><div class="ma-btn">⎘</div></div>
+      </div>
+    </div>
+    <div class="input-area">
+      <div class="input-box">
+        <div class="input-top">
+          <span class="input-ch">#general</span>
+          <input class="input-field" type="text" placeholder="Message #general…" id="msgInput" onkeydown="sendMsg(event)">
+        </div>
+        <div class="input-actions">
+          <div class="ia-btn"><svg viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>Attach</div>
+          <div class="ia-btn"><svg viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="M4.285 9.567a.5.5 0 0 1 .683.183A3.498 3.498 0 0 0 8 11.5a3.498 3.498 0 0 0 3.032-1.75.5.5 0 1 1 .866.5A4.498 4.498 0 0 1 8 12.5a4.498 4.498 0 0 1-3.898-2.25.5.5 0 0 1 .183-.683zM7 6.5C7 7.328 6.552 8 6 8s-1-.672-1-1.5S5.448 5 6 5s1 .672 1 1.5zm4 0c0 .828-.448 1.5-1 1.5s-1-.672-1-1.5S9.448 5 10 5s1 .672 1 1.5z"/></svg>Emoji</div>
+          <div class="ia-right">
+            <div class="ia-enc"><svg viewBox="0 0 16 16"><path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/></svg>E2E</div>
+            <div class="ia-send" onclick="doSend()">Send</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MEMBERS -->
+  <div class="members" id="mbPanel">
+    <div class="mb-label" style="margin-bottom:12px">УЧАСТНИКИ — 12</div>
+    <div class="mb-section">
+      <div class="mb-label">ADMIN (2)</div>
+      <div class="mb-item" onclick="showProfile('nekit','av1','NK','Admin','admin')"><div class="mb-av av1">NK<div class="mb-status st-on"></div></div><div><div class="mb-name">nekit</div><div class="mb-tag" style="color:#fb923c">Admin</div></div></div>
+      <div class="mb-item" onclick="showProfile('morfey','av4','MF','Admin','admin')"><div class="mb-av av4">MF<div class="mb-status st-on"></div></div><div><div class="mb-name">morfey</div><div class="mb-tag" style="color:#fb923c">Admin</div></div></div>
+    </div>
+    <div class="mb-section">
+      <div class="mb-label">MODERATOR (1)</div>
+      <div class="mb-item" onclick="showProfile('sylvans','av2','SY','Moderator','moderator')"><div class="mb-av av2">SY<div class="mb-status st-on"></div></div><div><div class="mb-name">sylvans</div><div class="mb-tag" style="color:#a07cc6">Moderator</div></div></div>
+    </div>
+    <div class="mb-section">
+      <div class="mb-label">ONLINE (7)</div>
+      <div class="mb-item"><div class="mb-av av6">G4<div class="mb-status st-on"></div></div><div><div class="mb-name">Guest_42</div></div></div>
+      <div class="mb-item"><div class="mb-av av5">DM<div class="mb-status st-on"></div></div><div><div class="mb-name">diman</div></div></div>
+      <div class="mb-item"><div class="mb-av av7">RV<div class="mb-status st-idle"></div></div><div><div class="mb-name">reverse</div></div></div>
+      <div class="mb-item"><div class="mb-av av8">SH<div class="mb-status st-on"></div></div><div><div class="mb-name">shizo</div></div></div>
+      <div class="mb-item"><div class="mb-av av1">KT<div class="mb-status st-on"></div></div><div><div class="mb-name">kitsune</div></div></div>
+      <div class="mb-item"><div class="mb-av av3">LG<div class="mb-status st-dnd"></div></div><div><div class="mb-name">l1ght</div></div></div>
+      <div class="mb-item"><div class="mb-av av2">M4<div class="mb-status st-on"></div></div><div><div class="mb-name">m41k</div></div></div>
+    </div>
+    <div class="mb-section">
+      <div class="mb-label">OFFLINE (2)</div>
+      <div class="mb-item" style="opacity:.35"><div class="mb-av" style="background:var(--bg3);color:var(--text3);font-size:10px">GH<div class="mb-status st-off"></div></div><div><div class="mb-name" style="color:var(--text3)">ghost</div></div></div>
+      <div class="mb-item" style="opacity:.35"><div class="mb-av" style="background:var(--bg3);color:var(--text3);font-size:10px">OL<div class="mb-status st-off"></div></div><div><div class="mb-name" style="color:var(--text3)">oldman</div></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Settings tabs
+function switchTab(name, el) {
+  document.querySelectorAll('.pg').forEach(p => p.classList.remove('active'));
+  document.getElementById('pg-' + name).classList.add('active');
+  document.querySelectorAll('.s-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+// Members toggle
+function toggleMb() {
+  document.getElementById('mbPanel').classList.toggle('hidden');
+}
+// Send message
+function sendMsg(e) { if(e.key === 'Enter') doSend(); }
+function doSend() {
+  const inp = document.getElementById('msgInput');
+  const text = inp.value.trim(); if(!text) return; inp.value = '';
+  const area = document.getElementById('msgs');
+  const now = new Date();
+  const t = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+  const g = document.createElement('div'); g.className = 'msg-group ns';
+  g.innerHTML = `<div class="msg-layout"><div class="msg-av av1">NK</div><div class="msg-cont"><div class="msg-hdr"><span class="msg-author" style="color:#c88b5a">nekit</span><span class="msg-time">${t}</span></div><div class="msg-text">${text.replace(/</g,'&lt;')}</div></div></div><div class="msg-actions"><div class="ma-btn">↩</div><div class="ma-btn">☺</div><div class="ma-btn">⎘</div></div>`;
+  area.appendChild(g); area.scrollTop = area.scrollHeight;
+}
+// Profile card
+const roleColors = {
+  admin: {color:'#fb923c',border:'rgba(251,146,60,.2)',bg:'rgba(251,146,60,.05)'},
+  moderator: {color:'#a07cc6',border:'rgba(160,124,198,.2)',bg:'rgba(160,124,198,.05)'},
+  member: {color:'var(--text3)',border:'var(--border)',bg:'transparent'}
+};
+function showProfile(name, avClass, initials, role, roleKey) {
+  const ov = document.getElementById('profileOv');
+  const av = document.getElementById('pcAv');
+  av.className = 'pc-av ' + avClass;
+  av.textContent = initials;
+  document.getElementById('pcName').textContent = name;
+  document.getElementById('pcTag').textContent = name + '#000' + (Math.floor(Math.random()*9)+1) + ' · nightcore.lnex';
+  const roleEl = document.getElementById('pcRole');
+  const rc = roleColors[roleKey] || roleColors.member;
+  roleEl.textContent = role;
+  roleEl.style.color = rc.color;
+  roleEl.style.borderColor = rc.border;
+  roleEl.style.background = rc.bg;
+  ov.classList.add('show');
+}
+// Voice focus
+function focusUser(name, avClass, initials) {
+  document.getElementById('voMain').classList.add('speaking');
+  const av = document.getElementById('voMainAv');
+  av.className = 'vo-main-av ' + avClass;
+  av.textContent = initials;
+  document.getElementById('voMainName').textContent = name;
+}
+// Level bars animation
+setInterval(() => {
+  const l1 = document.getElementById('lvl1'), l2 = document.getElementById('lvl2');
+  if(l1) l1.style.width = Math.max(5, Math.min(96, 68+(Math.random()-.5)*34))+'%';
+  if(l2) l2.style.width = Math.max(5, Math.min(88, 52+(Math.random()-.5)*28))+'%';
+}, 150);
+// Close settings/profile on backdrop click
+document.getElementById('settingsOv').addEventListener('click', function(e) {
+  if(e.target === this) this.classList.remove('show');
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+syntax = "proto3";
+package lnex.voice;
+
+// Voice packet header — sent over UDP (packet_id = 0x0010)
+//
+// Wire layout (see docs/02-protocol/packets.md):
+//   [base header 12 bytes]
+//   [voice_seq  4 bytes]
+//   [timestamp  4 bytes]
+//   [channel_id 8 bytes]
+//   [opus_data  variable]
+//
+// The base header payload_length covers voice_seq + timestamp +
+// channel_id + opus_data.
+
+message VoicePacket {
+  uint32 voice_seq   = 1;  // per-stream monotonic counter
+  uint32 timestamp   = 2;  // 48000 Hz RTP clock
+  uint64 channel_id  = 3;
+  bytes  opus_data   = 4;  // raw Opus frame
+}
+
+// Positional voice extension (Phase 4)
+// Attached as additional field when spatial audio is enabled.
+message VoicePosition {
+  float x         = 1;
+  float y         = 2;
+  float z         = 3;
+  float direction = 4;  // yaw in radians
+}

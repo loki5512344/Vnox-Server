@@ -1,0 +1,11 @@
+{
+  "name": "modbot",
+  "version": "0.1.0",
+  "author": "vnox",
+  "description": "Example moderation bot — deletes messages with banned words",
+  "main": "index.ts",
+  "permissions": [
+    "channel.read",
+    "message.delete"
+  ]
+}
