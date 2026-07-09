@@ -1,4 +1,5 @@
 use anyhow::Result;
+use prost::Message;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
@@ -17,7 +18,7 @@ pub async fn handle_role_create(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: RoleCreatePayload = serde_json::from_slice(payload)?;
+    let req = RoleCreatePayload::decode(payload)?;
     let sess = session::get(&state.sessions, session_id)
         .await
         .ok_or_else(|| anyhow::anyhow!("session not found"))?;
@@ -63,9 +64,13 @@ pub async fn handle_role_create(
         stream,
         PacketId::RoleCreate,
         seq,
-        &to_payload(
-            &serde_json::json!({"id": role_id, "guild_id": req.guild_id, "name": req.name}),
-        ),
+        &to_payload(&RoleCreatePayload {
+            guild_id: req.guild_id.clone(),
+            name: req.name.clone(),
+            color: req.color.clone(),
+            permissions: req.permissions,
+            id: role_id,
+        }),
         crypto,
     )
     .await?;
@@ -80,7 +85,7 @@ pub async fn handle_role_delete(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: RoleDeletePayload = serde_json::from_slice(payload)?;
+    let req = RoleDeletePayload::decode(payload)?;
     let sess = session::get(&state.sessions, session_id)
         .await
         .ok_or_else(|| anyhow::anyhow!("session not found"))?;
@@ -120,7 +125,10 @@ pub async fn handle_role_delete(
         stream,
         PacketId::RoleDelete,
         seq,
-        &to_payload(&serde_json::json!({"role_id": req.role_id})),
+        &to_payload(&RoleDeletePayload {
+            guild_id: req.guild_id.clone(),
+            role_id: req.role_id.clone(),
+        }),
         crypto,
     )
     .await?;

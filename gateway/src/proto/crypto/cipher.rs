@@ -1,6 +1,6 @@
 use chacha20poly1305::{
-    ChaCha20Poly1305, Key, KeyInit, Nonce,
     aead::{Aead, Payload},
+    ChaCha20Poly1305, Key, KeyInit, Nonce,
 };
 
 pub(super) fn make_nonce(cid: &[u8; 8], seq: u64) -> [u8; 12] {

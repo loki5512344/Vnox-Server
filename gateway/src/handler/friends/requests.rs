@@ -1,4 +1,5 @@
 use anyhow::Result;
+use prost::Message;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
@@ -23,7 +24,7 @@ pub async fn handle_friend_request(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: FriendRequestPayload = serde_json::from_slice(payload)?;
+    let req = FriendRequestPayload::decode(payload)?;
     let sess = session::get(&state.sessions, session_id)
         .await
         .ok_or_else(|| anyhow::anyhow!("session not found"))?;
@@ -92,7 +93,9 @@ pub async fn handle_friend_request(
         stream,
         PacketId::FriendRequest,
         seq,
-        &to_payload(&serde_json::json!({"status": "PENDING", "to_user_id": req.to_user_id})),
+        &to_payload(&FriendRequestPayload {
+            to_user_id: req.to_user_id.clone(),
+        }),
         crypto,
     )
     .await?;
@@ -107,7 +110,7 @@ pub async fn handle_friend_accept(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: FriendAcceptPayload = serde_json::from_slice(payload)?;
+    let req = FriendAcceptPayload::decode(payload)?;
     let sess = session::get(&state.sessions, session_id)
         .await
         .ok_or_else(|| anyhow::anyhow!("session not found"))?;
@@ -144,7 +147,9 @@ pub async fn handle_friend_accept(
         stream,
         PacketId::FriendAccept,
         seq,
-        &to_payload(&serde_json::json!({"status": "ACCEPTED", "from_user_id": req.from_user_id})),
+        &to_payload(&FriendAcceptPayload {
+            from_user_id: req.from_user_id.clone(),
+        }),
         crypto,
     )
     .await?;

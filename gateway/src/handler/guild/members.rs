@@ -1,4 +1,5 @@
 use anyhow::Result;
+use prost::Message;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
@@ -20,7 +21,7 @@ pub async fn handle_guild_member_join(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: GuildMemberJoinPayload = serde_json::from_slice(payload)?;
+    let req = GuildMemberJoinPayload::decode(payload)?;
     let sess = session::get(&state.sessions, session_id)
         .await
         .ok_or_else(|| anyhow::anyhow!("session not found"))?;
@@ -44,7 +45,9 @@ pub async fn handle_guild_member_join(
         stream,
         PacketId::GuildMemberJoin,
         seq,
-        &to_payload(&serde_json::json!({"guild_id": req.guild_id, "user_id": sess.user_id})),
+        &to_payload(&crate::proto::GuildMemberJoinPayload {
+            guild_id: req.guild_id.clone(),
+        }),
         crypto,
     )
     .await?;
@@ -53,9 +56,11 @@ pub async fn handle_guild_member_join(
         stream,
         PacketId::UserRoleUpdate,
         seq,
-        &to_payload(
-            &serde_json::json!({"user_id": sess.user_id, "guild_id": req.guild_id, "color": color}),
-        ),
+        &to_payload(&crate::proto::UserRoleUpdatePayload {
+            user_id: sess.user_id.clone(),
+            guild_id: req.guild_id.clone(),
+            color,
+        }),
         crypto,
     )
     .await?;
@@ -70,25 +75,28 @@ pub async fn handle_guild_member_leave(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: GuildMemberLeavePayload = serde_json::from_slice(payload)?;
+    let req = GuildMemberLeavePayload::decode(payload)?;
     let sess = session::get(&state.sessions, session_id)
         .await
         .ok_or_else(|| anyhow::anyhow!("session not found"))?;
 
     let target = if req.user_id.is_empty() {
-        &sess.user_id
+        sess.user_id.clone()
     } else {
-        &req.user_id
+        req.user_id.clone()
     };
     state
         .storage
-        .remove_guild_member(&req.guild_id, target)
+        .remove_guild_member(&req.guild_id, target.as_str())
         .await?;
     io::send_encrypted(
         stream,
         PacketId::GuildMemberLeave,
         seq,
-        &to_payload(&serde_json::json!({"guild_id": req.guild_id, "user_id": target})),
+        &to_payload(&GuildMemberLeavePayload {
+            guild_id: req.guild_id.clone(),
+            user_id: target,
+        }),
         crypto,
     )
     .await?;
@@ -103,7 +111,7 @@ pub async fn handle_guild_member_kick(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: GuildMemberKickPayload = serde_json::from_slice(payload)?;
+    let req = GuildMemberKickPayload::decode(payload)?;
     let sess = session::get(&state.sessions, session_id)
         .await
         .ok_or_else(|| anyhow::anyhow!("session not found"))?;
@@ -146,7 +154,10 @@ pub async fn handle_guild_member_kick(
         stream,
         PacketId::GuildMemberKick,
         seq,
-        &to_payload(&serde_json::json!({"guild_id": req.guild_id, "user_id": req.user_id})),
+        &to_payload(&GuildMemberKickPayload {
+            guild_id: req.guild_id.clone(),
+            user_id: req.user_id.clone(),
+        }),
         crypto,
     )
     .await?;

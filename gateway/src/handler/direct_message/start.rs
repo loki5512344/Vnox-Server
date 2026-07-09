@@ -1,4 +1,5 @@
 use anyhow::Result;
+use prost::Message;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
@@ -15,7 +16,7 @@ pub async fn handle_dm_start(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: DmStartPayload = serde_json::from_slice(payload)?;
+    let req = DmStartPayload::decode(payload)?;
 
     let sess = session::get(&state.sessions, session_id)
         .await
@@ -95,10 +96,7 @@ pub async fn handle_dm_read_ack(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: serde_json::Value = serde_json::from_slice(payload)?;
-    let dm_id = req["dm_id"]
-        .as_str()
-        .ok_or_else(|| anyhow::anyhow!("missing dm_id"))?;
+    let req = crate::proto::DmReadAckPayload::decode(payload)?;
 
     let sess = session::get(&state.sessions, session_id)
         .await
@@ -106,7 +104,7 @@ pub async fn handle_dm_read_ack(
     let my_id = sess.user_id.clone();
     drop(sess);
 
-    state.storage.reset_dm_unread(dm_id, &my_id).await?;
+    state.storage.reset_dm_unread(&req.dm_id, &my_id).await?;
 
     io::send_encrypted(stream, PacketId::DmReadAck, seq, b"{}", crypto).await?;
     Ok(())

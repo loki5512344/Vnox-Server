@@ -1,4 +1,5 @@
 use anyhow::Result;
+use prost::Message;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{info, warn};
 
@@ -24,7 +25,7 @@ pub async fn handle_channel_create(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: ChannelCreatePayload = serde_json::from_slice(payload)?;
+    let req = ChannelCreatePayload::decode(payload)?;
     let sess = match session::get(&state.sessions, session_id).await {
         Some(s) => s,
         None => return Ok(()),
@@ -178,7 +179,7 @@ pub async fn handle_channel_delete(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: ChannelDeletePayload = serde_json::from_slice(payload)?;
+    let req = ChannelDeletePayload::decode(payload)?;
     let sess = match session::get(&state.sessions, session_id).await {
         Some(s) => s,
         None => return Ok(()),

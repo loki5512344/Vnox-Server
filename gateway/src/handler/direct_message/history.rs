@@ -1,4 +1,5 @@
 use anyhow::Result;
+use prost::Message;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
@@ -15,7 +16,7 @@ pub async fn handle_dm_history(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: DmHistoryPayload = serde_json::from_slice(payload)?;
+    let req = DmHistoryPayload::decode(payload)?;
 
     let sess = session::get(&state.sessions, session_id)
         .await

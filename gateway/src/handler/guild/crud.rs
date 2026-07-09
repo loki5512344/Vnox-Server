@@ -1,4 +1,5 @@
 use anyhow::Result;
+use prost::Message;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::debug;
 
@@ -18,7 +19,7 @@ pub async fn handle_guild_create(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: GuildCreatePayload = serde_json::from_slice(payload)?;
+    let req = GuildCreatePayload::decode(payload)?;
     let sess = session::get(&state.sessions, session_id)
         .await
         .ok_or_else(|| anyhow::anyhow!("session not found"))?;
@@ -74,11 +75,7 @@ pub async fn handle_guild_delete(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    #[derive(serde::Deserialize)]
-    struct Req {
-        guild_id: String,
-    }
-    let req: Req = serde_json::from_slice(payload)?;
+    let req = crate::proto::GuildDeletePayload::decode(payload)?;
     let sess = session::get(&state.sessions, session_id)
         .await
         .ok_or_else(|| anyhow::anyhow!("session not found"))?;
@@ -112,11 +109,14 @@ pub async fn handle_guild_delete(
             None,
         )
         .await?;
+
     io::send_encrypted(
         stream,
         PacketId::GuildDelete,
         seq,
-        &to_payload(&serde_json::json!({"guild_id": req.guild_id})),
+        &to_payload(&crate::proto::GuildDeletePayload {
+            guild_id: req.guild_id.clone(),
+        }),
         crypto,
     )
     .await?;

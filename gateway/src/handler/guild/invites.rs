@@ -1,4 +1,5 @@
 use anyhow::Result;
+use prost::Message;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
@@ -20,7 +21,7 @@ pub async fn handle_invite_create(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: InviteCreatePayload = serde_json::from_slice(payload)?;
+    let req = InviteCreatePayload::decode(payload)?;
     let sess = session::get(&state.sessions, session_id)
         .await
         .ok_or_else(|| anyhow::anyhow!("session not found"))?;
@@ -96,7 +97,7 @@ pub async fn handle_invite_accept(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: InviteAcceptPayload = serde_json::from_slice(payload)?;
+    let req = InviteAcceptPayload::decode(payload)?;
     let sess = session::get(&state.sessions, session_id)
         .await
         .ok_or_else(|| anyhow::anyhow!("session not found"))?;
@@ -156,7 +157,11 @@ pub async fn handle_invite_accept(
         stream,
         PacketId::InviteAccept,
         seq,
-        &to_payload(&serde_json::json!({"guild_id": inv.guild_id, "guild_name": inv.guild_name})),
+        &to_payload(&InviteAcceptPayload {
+            code: "".into(),
+            guild_id: inv.guild_id.clone(),
+            guild_name: inv.guild_name.clone(),
+        }),
         crypto,
     )
     .await?;
@@ -171,7 +176,7 @@ pub async fn handle_invite_delete(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: InviteDeletePayload = serde_json::from_slice(payload)?;
+    let req = InviteDeletePayload::decode(payload)?;
     let sess = session::get(&state.sessions, session_id)
         .await
         .ok_or_else(|| anyhow::anyhow!("session not found"))?;
@@ -211,7 +216,10 @@ pub async fn handle_invite_delete(
         stream,
         PacketId::InviteDelete,
         seq,
-        &to_payload(&serde_json::json!({"invite_id": req.invite_id})),
+        &to_payload(&InviteDeletePayload {
+            guild_id: req.guild_id.clone(),
+            invite_id: req.invite_id.clone(),
+        }),
         crypto,
     )
     .await?;

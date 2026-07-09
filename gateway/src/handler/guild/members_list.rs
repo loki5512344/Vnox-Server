@@ -1,4 +1,5 @@
 use anyhow::Result;
+use prost::Message;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
@@ -22,7 +23,7 @@ pub async fn handle_member_list_fetch(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: GuildMemberListFetchPayload = serde_json::from_slice(payload)?;
+    let req = GuildMemberListFetchPayload::decode(payload)?;
     let sess = match session::get(&state.sessions, session_id).await {
         Some(s) => s,
         None => return Ok(()),
@@ -72,7 +73,7 @@ pub async fn handle_role_assign(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: RoleAssignPayload = serde_json::from_slice(payload)?;
+    let req = RoleAssignPayload::decode(payload)?;
     let sess = match session::get(&state.sessions, session_id).await {
         Some(s) => s,
         None => return Ok(()),
@@ -118,9 +119,11 @@ pub async fn handle_role_assign(
         stream,
         PacketId::GuildRoleAssign,
         seq,
-        &to_payload(
-            &serde_json::json!({"ok": true, "user_id": req.user_id, "role_id": req.role_id}),
-        ),
+        &to_payload(&RoleAssignPayload {
+            guild_id: req.guild_id.clone(),
+            user_id: req.user_id.clone(),
+            role_id: req.role_id.clone(),
+        }),
         crypto,
     )
     .await?;
@@ -136,7 +139,7 @@ pub async fn handle_role_unassign(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: RoleAssignPayload = serde_json::from_slice(payload)?;
+    let req = RoleAssignPayload::decode(payload)?;
     let sess = match session::get(&state.sessions, session_id).await {
         Some(s) => s,
         None => return Ok(()),
@@ -181,9 +184,11 @@ pub async fn handle_role_unassign(
         stream,
         PacketId::GuildRoleUnassign,
         seq,
-        &to_payload(
-            &serde_json::json!({"ok": true, "user_id": req.user_id, "role_id": req.role_id}),
-        ),
+        &to_payload(&RoleAssignPayload {
+            guild_id: req.guild_id.clone(),
+            user_id: req.user_id.clone(),
+            role_id: req.role_id.clone(),
+        }),
         crypto,
     )
     .await?;
@@ -199,7 +204,7 @@ pub async fn handle_role_list_fetch(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: GuildRoleListFetchPayload = serde_json::from_slice(payload)?;
+    let req = GuildRoleListFetchPayload::decode(payload)?;
     let _sess = session::get(&state.sessions, session_id).await;
 
     let rows = state.storage.list_guild_roles(&req.guild_id).await?;

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use prost::Message;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
@@ -6,7 +7,7 @@ use crate::{
     net::{io, state::State},
     proto::{
         BlockListPayload, BlockUserPayload, FriendRemovePayload, PacketId, SessionCrypto,
-        UnblockUserPayload, to_payload,
+        SimpleResponsePayload, UnblockUserPayload, to_payload,
     },
 };
 
@@ -18,7 +19,7 @@ pub async fn handle_friend_remove(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: FriendRemovePayload = serde_json::from_slice(payload)?;
+    let req = FriendRemovePayload::decode(payload)?;
     let sess = session::get(&state.sessions, session_id)
         .await
         .ok_or_else(|| anyhow::anyhow!("session not found"))?;
@@ -32,7 +33,7 @@ pub async fn handle_friend_remove(
         stream,
         PacketId::FriendRemove,
         seq,
-        &to_payload(&serde_json::json!({"removed": true})),
+        &to_payload(&SimpleResponsePayload { ok: true, user_id: None, role_id: None }),
         crypto,
     )
     .await?;
@@ -47,7 +48,7 @@ pub async fn handle_block_user(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: BlockUserPayload = serde_json::from_slice(payload)?;
+    let req = BlockUserPayload::decode(payload)?;
     let sess = session::get(&state.sessions, session_id)
         .await
         .ok_or_else(|| anyhow::anyhow!("session not found"))?;
@@ -61,7 +62,7 @@ pub async fn handle_block_user(
         stream,
         PacketId::BlockUser,
         seq,
-        &to_payload(&serde_json::json!({"blocked": true})),
+        &to_payload(&SimpleResponsePayload { ok: true, user_id: None, role_id: None }),
         crypto,
     )
     .await?;
@@ -76,7 +77,7 @@ pub async fn handle_unblock_user(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: UnblockUserPayload = serde_json::from_slice(payload)?;
+    let req = UnblockUserPayload::decode(payload)?;
     let sess = session::get(&state.sessions, session_id)
         .await
         .ok_or_else(|| anyhow::anyhow!("session not found"))?;
@@ -90,7 +91,7 @@ pub async fn handle_unblock_user(
         stream,
         PacketId::UnblockUser,
         seq,
-        &to_payload(&serde_json::json!({"unblocked": true})),
+        &to_payload(&SimpleResponsePayload { ok: true, user_id: None, role_id: None }),
         crypto,
     )
     .await?;

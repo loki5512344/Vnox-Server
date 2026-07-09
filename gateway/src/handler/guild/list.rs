@@ -4,7 +4,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use crate::{
     domain::session,
     net::{io, state::State},
-    proto::{GuildInfo, GuildListPayload, PacketId, SessionCrypto, to_payload},
+    proto::{GuildInfo, GuildListPayload, PacketId, SessionCrypto, UserRoleUpdatePayload, to_payload},
 };
 
 pub async fn handle_guild_list(
@@ -41,9 +41,11 @@ pub async fn handle_guild_list(
             stream,
             PacketId::UserRoleUpdate,
             seq,
-            &to_payload(
-                &serde_json::json!({"user_id": sess.user_id, "guild_id": g.id, "color": color}),
-            ),
+            &to_payload(&UserRoleUpdatePayload {
+                user_id: sess.user_id.clone(),
+                guild_id: g.id.clone(),
+                color,
+            }),
             crypto,
         )
         .await?;

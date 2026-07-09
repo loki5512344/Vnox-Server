@@ -1,4 +1,5 @@
 use anyhow::Result;
+use prost::Message;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::debug;
 
@@ -21,7 +22,7 @@ pub async fn dispatch<S: AsyncRead + AsyncWrite + Unpin>(
 ) -> Result<()> {
     match pid {
         PacketId::Ping => {
-            let ping: PingPayload = serde_json::from_slice(payload)?;
+            let ping = PingPayload::decode(payload)?;
             io::send_encrypted(
                 ctx.stream,
                 PacketId::Pong,
@@ -34,12 +35,12 @@ pub async fn dispatch<S: AsyncRead + AsyncWrite + Unpin>(
             .await?;
         }
         PacketId::JoinChannel => {
-            let m: JoinChannelPayload = serde_json::from_slice(payload)?;
+            let m = JoinChannelPayload::decode(payload)?;
             channel::join(ctx.stream, ctx.seq, session_id, &m.channel_id, ctx.crypto, ctx.state)
                 .await?;
         }
         PacketId::LeaveChannel => {
-            let m: LeaveChannelPayload = serde_json::from_slice(payload)?;
+            let m = LeaveChannelPayload::decode(payload)?;
             channel::leave(ctx.stream, ctx.seq, session_id, &m.channel_id, ctx.crypto, ctx.state)
                 .await?;
         }
@@ -70,7 +71,7 @@ pub async fn dispatch<S: AsyncRead + AsyncWrite + Unpin>(
                 .await?;
         }
         PacketId::ChatMessage => {
-            let m: ChatMessagePayload = serde_json::from_slice(payload)?;
+            let m = ChatMessagePayload::decode(payload)?;
             content::chat::handle(session_id, m, ctx.state).await?;
         }
         PacketId::DmStart => {
@@ -382,11 +383,11 @@ pub async fn dispatch<S: AsyncRead + AsyncWrite + Unpin>(
                 .await?;
         }
         PacketId::MessageReactionAdd => {
-            let m: ReactionPayload = serde_json::from_slice(payload)?;
+            let m = ReactionPayload::decode(payload)?;
             content::reaction::handle_reaction_add(session_id, m, ctx.state).await?;
         }
         PacketId::MessageReactionRemove => {
-            let m: ReactionPayload = serde_json::from_slice(payload)?;
+            let m = ReactionPayload::decode(payload)?;
             content::reaction::handle_reaction_remove(session_id, m, ctx.state).await?;
         }
         PacketId::MessageEdit => {

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use prost::Message;
 use tracing::debug;
 
 use crate::{
@@ -8,7 +9,7 @@ use crate::{
 };
 
 pub async fn handle_message_edit(session_id: &str, payload: &[u8], state: &State) -> Result<()> {
-    let edit: crate::proto::MessageEditPayload = serde_json::from_slice(payload)?;
+    let edit = crate::proto::MessageEditPayload::decode(payload)?;
     let sess = match session::get(&state.sessions, session_id).await {
         Some(s) => s,
         None => return Ok(()),
@@ -60,7 +61,7 @@ pub async fn handle_message_edit(session_id: &str, payload: &[u8], state: &State
 }
 
 pub async fn handle_message_delete(session_id: &str, payload: &[u8], state: &State) -> Result<()> {
-    let delete: MessageDeletePayload = serde_json::from_slice(payload)?;
+    let delete = MessageDeletePayload::decode(payload)?;
     let sess = match session::get(&state.sessions, session_id).await {
         Some(s) => s,
         None => return Ok(()),

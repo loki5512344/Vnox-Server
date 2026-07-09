@@ -1,4 +1,5 @@
 use anyhow::Result;
+use prost::Message;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{debug, info, warn};
 
@@ -23,17 +24,17 @@ pub async fn run(
 ) -> Result<(session::Session, SessionCrypto)> {
     // Generate ephemeral X25519 keypair for forward secrecy
     let (eph_sk, eph_pk) = SessionCrypto::new_ephemeral();
-    let eph_pk_hex = hex::encode(eph_pk.as_bytes());
+    let eph_pk_raw = eph_pk.as_bytes();
 
     // HELLO — include server's ephemeral public key + privacy mode
     let challenge = auth::new_challenge();
     let private_mode = state.config.is_private();
     let hello = HelloPayload {
         lnex_version: LNEX_VERSION.into(),
-        server_pubkey: state.server_identity.pubkey_hex(),
-        challenge_nonce: hex::encode(challenge),
+        server_pubkey: hex::decode(state.server_identity.pubkey_hex())?,
+        challenge_nonce: challenge.to_vec(),
         node_name: state.config.node.name.clone(),
-        server_eph_pubkey: eph_pk_hex,
+        server_eph_pubkey: eph_pk_raw.to_vec(),
         private_mode,
     };
     io::send_packet(stream, PacketId::Hello, seq, &to_payload(&hello)).await?;
@@ -52,7 +53,7 @@ pub async fn run(
         return Err(anyhow::anyhow!("expected AUTH"));
     }
 
-    let msg: AuthPayload = serde_json::from_slice(&payload)?;
+    let msg = AuthPayload::decode(payload.as_slice())?;
     debug!("{addr} → AUTH nick={}", msg.nickname);
 
     if msg.lnex_version != LNEX_VERSION {
@@ -66,9 +67,8 @@ pub async fn run(
         return Err(anyhow::anyhow!("version mismatch"));
     }
 
-    let pubkey =
-        hex_to_32(&msg.client_pubkey).ok_or_else(|| anyhow::anyhow!("bad client pubkey"))?;
-    let sig = hex_to_64(&msg.signature).ok_or_else(|| anyhow::anyhow!("bad signature"))?;
+    let pubkey: [u8; 32] = msg.client_pubkey.as_slice().try_into()?;
+    let sig: [u8; 64] = msg.signature.as_slice().try_into()?;
 
     if let Err(e) = auth::verify_auth(&challenge, &pubkey, &sig) {
         warn!("{addr} auth failed: {e}");
@@ -83,7 +83,7 @@ pub async fn run(
         return Err(anyhow::anyhow!("auth failed"));
     }
 
-    if state.storage.is_banned(&msg.client_pubkey).await? {
+    if state.storage.is_banned(&hex::encode(&msg.client_pubkey)).await? {
         state.metrics.inc(&state.metrics.auth_failures);
         io::send_error(stream, seq, proto::ErrorCode::AuthFailed, "banned").await?;
         return Err(anyhow::anyhow!("banned"));
@@ -91,19 +91,18 @@ pub async fn run(
 
     state
         .storage
-        .upsert_user(&msg.client_pubkey, &msg.nickname)
+        .upsert_user(&hex::encode(&msg.client_pubkey), &msg.nickname)
         .await?;
 
     // ECDH: compute shared secret from server's ephemeral sk + client's ephemeral pk
-    let client_eph_raw = hex_to_32(&msg.client_eph_pubkey)
-        .ok_or_else(|| anyhow::anyhow!("bad client eph pubkey"))?;
+    let client_eph_raw: [u8; 32] = msg.client_eph_pubkey.as_slice().try_into()?;
     let client_eph_pk = x25519_dalek::PublicKey::from(client_eph_raw);
     let shared_secret = SessionCrypto::ecdh(eph_sk, &client_eph_pk);
 
     // SESSION
     let sess = session::create(
         &state.sessions,
-        msg.client_pubkey.clone(),
+        hex::encode(&msg.client_pubkey),
         msg.nickname.clone(),
     )
     .await;
@@ -130,11 +129,4 @@ pub async fn run(
     );
 
     Ok((sess, crypto))
-}
-
-fn hex_to_32(s: &str) -> Option<[u8; 32]> {
-    hex::decode(s).ok()?.try_into().ok()
-}
-fn hex_to_64(s: &str) -> Option<[u8; 64]> {
-    hex::decode(s).ok()?.try_into().ok()
 }

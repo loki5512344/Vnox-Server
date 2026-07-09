@@ -1,4 +1,5 @@
 use anyhow::Result;
+use prost::Message;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
@@ -19,7 +20,7 @@ pub async fn handle_audit_log_fetch(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let req: GuildAuditLogFetchPayload = serde_json::from_slice(payload)?;
+    let req = GuildAuditLogFetchPayload::decode(payload)?;
     let sess = match crate::domain::session::get(&state.sessions, session_id).await {
         Some(s) => s,
         None => return Ok(()),

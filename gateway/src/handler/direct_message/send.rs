@@ -1,4 +1,5 @@
 use anyhow::Result;
+use prost::Message;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::warn;
 
@@ -21,7 +22,7 @@ pub async fn handle_dm_message(
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
-    let msg: DmMessagePayload = serde_json::from_slice(payload)?;
+    let msg = DmMessagePayload::decode(payload)?;
 
     let sess = session::get(&state.sessions, session_id)
         .await

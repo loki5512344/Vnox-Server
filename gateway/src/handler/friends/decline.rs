@@ -1,10 +1,11 @@
 use anyhow::Result;
+use prost::Message;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
     domain::session,
     net::io,
-    proto::{FriendDeclinePayload, PacketId, SessionCrypto, to_payload},
+    proto::{FriendDeclinePayload, PacketId, SessionCrypto, SimpleResponsePayload, to_payload},
 };
 
 pub async fn handle_friend_decline(
@@ -15,7 +16,7 @@ pub async fn handle_friend_decline(
     crypto: &SessionCrypto,
     state: &crate::net::state::State,
 ) -> Result<()> {
-    let req: FriendDeclinePayload = serde_json::from_slice(payload)?;
+    let req = FriendDeclinePayload::decode(payload)?;
     let sess = session::get(&state.sessions, session_id)
         .await
         .ok_or_else(|| anyhow::anyhow!("session not found"))?;
@@ -29,7 +30,7 @@ pub async fn handle_friend_decline(
         stream,
         PacketId::FriendDecline,
         seq,
-        &to_payload(&serde_json::json!({"status": "DECLINED"})),
+        &to_payload(&SimpleResponsePayload { ok: true, user_id: None, role_id: None }),
         crypto,
     )
     .await?;
