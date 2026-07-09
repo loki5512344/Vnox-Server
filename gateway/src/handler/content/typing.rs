@@ -1,0 +1,30 @@
+use anyhow::Result;
+
+use crate::{
+    domain::session,
+    net::state::{BroadcastMsg, State},
+    proto::{PacketId, TypingStartPayload, encode_packet, to_payload},
+};
+
+pub async fn handle_typing_start(session_id: &str, payload: &[u8], state: &State) -> Result<()> {
+    let req: TypingStartPayload = serde_json::from_slice(payload)?;
+    let sess = match session::get(&state.sessions, session_id).await {
+        Some(s) => s,
+        None => return Ok(()),
+    };
+
+    let data = serde_json::json!({
+        "user_id": sess.user_id,
+        "nickname": sess.nickname,
+        "channel_id": req.channel_id,
+    });
+
+    let _ = state.broadcast.send(BroadcastMsg {
+        channel_id: Some(req.channel_id),
+        exclude_session: Some(session_id.into()),
+        target_session_id: None,
+        data: encode_packet(PacketId::TypingStart, 0, &to_payload(&data)),
+    });
+
+    Ok(())
+}

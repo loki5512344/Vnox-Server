@@ -1,0 +1,140 @@
+use anyhow::Result;
+use tokio::net::TcpStream;
+use tracing::{debug, info, warn};
+
+use crate::{
+    domain::{auth, session},
+    net::io,
+    net::state::State,
+    proto::{self, AuthPayload, HelloPayload, PacketId, SessionCrypto, SessionPayload, to_payload},
+};
+
+const LNEX_VERSION: &str = "v1";
+
+/// Run HELLO → AUTH → SESSION with X25519 ECDH key exchange.
+///
+/// Returns the session and the derived crypto context (encryption keys).
+/// All subsequent packets must be encrypted with `crypto`.
+pub async fn run(
+    stream: &mut TcpStream,
+    addr: std::net::SocketAddr,
+    state: &State,
+    seq: &mut u32,
+) -> Result<(session::Session, SessionCrypto)> {
+    // Generate ephemeral X25519 keypair for forward secrecy
+    let (eph_sk, eph_pk) = SessionCrypto::new_ephemeral();
+    let eph_pk_hex = hex::encode(eph_pk.as_bytes());
+
+    // HELLO — include server's ephemeral public key + privacy mode
+    let challenge = auth::new_challenge();
+    let private_mode = state.config.is_private();
+    let hello = HelloPayload {
+        lnex_version: LNEX_VERSION.into(),
+        server_pubkey: state.server_identity.pubkey_hex(),
+        challenge_nonce: hex::encode(challenge),
+        node_name: state.config.node.name.clone(),
+        server_eph_pubkey: eph_pk_hex,
+        private_mode,
+    };
+    io::send_packet(stream, PacketId::Hello, seq, &to_payload(&hello)).await?;
+    debug!("{addr} ← HELLO (eph key included)");
+
+    // AUTH — receive client's ephemeral public key
+    let (hdr, payload) = io::read_packet(stream).await?;
+    if PacketId::from_u16(hdr.packet_id) != Some(PacketId::Auth) {
+        io::send_error(
+            stream,
+            seq,
+            proto::ErrorCode::InvalidPacket,
+            "expected AUTH",
+        )
+        .await?;
+        return Err(anyhow::anyhow!("expected AUTH"));
+    }
+
+    let msg: AuthPayload = serde_json::from_slice(&payload)?;
+    debug!("{addr} → AUTH nick={}", msg.nickname);
+
+    if msg.lnex_version != LNEX_VERSION {
+        io::send_error(
+            stream,
+            seq,
+            proto::ErrorCode::VersionMismatch,
+            "unsupported version",
+        )
+        .await?;
+        return Err(anyhow::anyhow!("version mismatch"));
+    }
+
+    let pubkey =
+        hex_to_32(&msg.client_pubkey).ok_or_else(|| anyhow::anyhow!("bad client pubkey"))?;
+    let sig = hex_to_64(&msg.signature).ok_or_else(|| anyhow::anyhow!("bad signature"))?;
+
+    if let Err(e) = auth::verify_auth(&challenge, &pubkey, &sig) {
+        warn!("{addr} auth failed: {e}");
+        state.metrics.inc(&state.metrics.auth_failures);
+        io::send_error(
+            stream,
+            seq,
+            proto::ErrorCode::AuthFailed,
+            "invalid signature",
+        )
+        .await?;
+        return Err(anyhow::anyhow!("auth failed"));
+    }
+
+    if state.storage.is_banned(&msg.client_pubkey).await? {
+        state.metrics.inc(&state.metrics.auth_failures);
+        io::send_error(stream, seq, proto::ErrorCode::AuthFailed, "banned").await?;
+        return Err(anyhow::anyhow!("banned"));
+    }
+
+    state
+        .storage
+        .upsert_user(&msg.client_pubkey, &msg.nickname)
+        .await?;
+
+    // ECDH: compute shared secret from server's ephemeral sk + client's ephemeral pk
+    let client_eph_raw = hex_to_32(&msg.client_eph_pubkey)
+        .ok_or_else(|| anyhow::anyhow!("bad client eph pubkey"))?;
+    let client_eph_pk = x25519_dalek::PublicKey::from(client_eph_raw);
+    let shared_secret = SessionCrypto::ecdh(eph_sk, &client_eph_pk);
+
+    // SESSION
+    let sess = session::create(
+        &state.sessions,
+        msg.client_pubkey.clone(),
+        msg.nickname.clone(),
+    )
+    .await;
+
+    // Derive encryption keys from shared secret + session_id
+    let crypto = SessionCrypto::derive(shared_secret.as_bytes(), &sess.session_id);
+
+    let timeout_secs = state.config.gateway.session_timeout.unwrap_or(600);
+    let expires_at = std::time::SystemTime::now()
+        .checked_add(std::time::Duration::from_secs(timeout_secs))
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let sp = SessionPayload {
+        session_id: sess.session_id.clone(),
+        token: sess.token.clone(),
+        expires_at,
+    };
+    io::send_packet(stream, PacketId::Session, seq, &to_payload(&sp)).await?;
+    info!(
+        "{addr} auth ok — nick={} sid={} encrypted",
+        sess.nickname,
+        &sess.session_id[..8]
+    );
+
+    Ok((sess, crypto))
+}
+
+fn hex_to_32(s: &str) -> Option<[u8; 32]> {
+    hex::decode(s).ok()?.try_into().ok()
+}
+fn hex_to_64(s: &str) -> Option<[u8; 64]> {
+    hex::decode(s).ok()?.try_into().ok()
+}

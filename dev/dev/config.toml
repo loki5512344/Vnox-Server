@@ -1,0 +1,25 @@
+[node]
+name    = "dev-node"
+address = "127.0.0.1"
+
+[gateway]
+bind                = "127.0.0.1:7600"
+max_connections     = 100
+session_timeout     = 600
+# Admin HTTP server (/health, /metrics, /version). Default 0.0.0.0:7601.
+admin_bind          = "127.0.0.1:7601"
+# Per-session chat/DM rate limit (messages per second; 0 to disable).
+message_rate_per_sec = 5
+# Burst size for the token bucket.
+message_rate_burst   = 10
+
+[voice]
+bind = "127.0.0.1:7700"
+
+[storage]
+data_dir    = "./dev/data"
+backend     = "sqlite"
+sqlite_path = "./dev/data/vnox.db"
+
+[server]
+mode = "private"

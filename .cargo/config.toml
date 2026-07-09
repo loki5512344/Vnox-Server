@@ -1,0 +1,29 @@
+[env]
+# audiopus_sys builds opus from source via CMake.
+# CMake 4.x removed compatibility with cmake_minimum_required < 3.5.
+# This flag tells CMake to accept the old policy version.
+CMAKE_POLICY_VERSION_MINIMUM = "3.5"
+# Cap linker+rustc memory pressure so builds don't OOM-kill the host.
+RUST_MIN_STACK = "8388608"
+
+[build]
+# Limit parallelism so GPUI's giant dep tree doesn't saturate all cores.
+# 4 jobs is a safe-ish ceiling for a 15GB / 24-thread box.
+jobs = 6
+
+[profile.dev]
+# Less debug info = less RAM per codegen unit, faster cold builds.
+debug = 1
+# More codegen units = smaller per-unit memory footprint.
+codegen-units = 16
+# Don't keep intermediate artifacts for every dep.
+split-debuginfo = "unpacked"
+
+[profile.dev.package."*"]
+# Deps don't need debuginfo at all → big savings on big trees like GPUI.
+debug = 0
+codegen-units = 16
+
+[profile.release]
+debug = 0
+codegen-units = 16

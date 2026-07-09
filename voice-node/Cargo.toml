@@ -1,0 +1,26 @@
+[package]
+name        = "vnox-voice-node"
+description = "VNOX voice node — UDP relay, Opus, jitter buffer"
+version.workspace    = true
+edition.workspace    = true
+license.workspace    = true
+authors.workspace    = true
+repository.workspace = true
+
+[lib]
+name = "vnox_voice_node"
+path = "src/lib.rs"
+
+[[bin]]
+name = "vnox-voice-node"
+path = "src/main.rs"
+
+[dependencies]
+tokio.workspace     = true
+opus.workspace      = true
+tracing.workspace   = true
+tracing-subscriber.workspace = true
+anyhow.workspace    = true
+thiserror.workspace = true
+toml.workspace      = true
+serde.workspace     = true

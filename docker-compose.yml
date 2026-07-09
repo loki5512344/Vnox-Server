@@ -1,0 +1,24 @@
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    network_mode: "host"
+    volumes:
+      - ./dev/config.toml:/etc/vnox/config.toml:ro
+      - vnox-data:/var/lib/vnox
+    command: ["--config", "/etc/vnox/config.toml"]
+    restart: unless-stopped
+
+  voice-node:
+    build:
+      context: .
+      dockerfile: Dockerfile.voice-node
+    network_mode: "host"
+    depends_on:
+      - gateway
+    command: ["--config", "/etc/vnox/config.toml"]
+    restart: unless-stopped
+
+volumes:
+  vnox-data:
