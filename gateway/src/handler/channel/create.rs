@@ -99,6 +99,7 @@ pub async fn handle_channel_create(
     let created = channels::create(&state.channels, &channel_id, &channel_name, kind.clone()).await;
 
     // Persist to DB (best-effort, log and continue on failure).
+    #[allow(clippy::collapsible_if)]
     if created {
         if let Err(e) = state
             .storage
@@ -204,6 +205,7 @@ pub async fn handle_channel_delete(
     let existed = channels::delete(&state.channels, &req.channel_id).await;
 
     // Remove from DB (best-effort).
+    #[allow(clippy::collapsible_if)]
     if existed {
         if let Err(e) = state.storage.delete_channel(&req.channel_id).await {
             warn!("failed to remove channel from storage: {e}");

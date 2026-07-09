@@ -1,7 +1,7 @@
 use std::collections::HashMap;
-use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
-use tokio::sync::{broadcast, RwLock};
+use std::sync::atomic::AtomicUsize;
+use tokio::sync::{RwLock, broadcast};
 
 use crate::admin::metrics::Metrics;
 use crate::bootstrap::server_identity::ServerIdentity;

@@ -30,7 +30,11 @@ pub async fn handle_friend_decline(
         stream,
         PacketId::FriendDecline,
         seq,
-        &to_payload(&SimpleResponsePayload { ok: true, user_id: None, role_id: None }),
+        &to_payload(&SimpleResponsePayload {
+            ok: true,
+            user_id: None,
+            role_id: None,
+        }),
         crypto,
     )
     .await?;

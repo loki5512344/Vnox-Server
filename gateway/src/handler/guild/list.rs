@@ -4,7 +4,9 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use crate::{
     domain::session,
     net::{io, state::State},
-    proto::{GuildInfo, GuildListPayload, PacketId, SessionCrypto, UserRoleUpdatePayload, to_payload},
+    proto::{
+        GuildInfo, GuildListPayload, PacketId, SessionCrypto, UserRoleUpdatePayload, to_payload,
+    },
 };
 
 pub async fn handle_guild_list(

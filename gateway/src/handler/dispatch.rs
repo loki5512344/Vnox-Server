@@ -36,33 +36,37 @@ pub async fn dispatch<S: AsyncRead + AsyncWrite + Unpin>(
         }
         PacketId::JoinChannel => {
             let m = JoinChannelPayload::decode(payload)?;
-            channel::join(ctx.stream, ctx.seq, session_id, &m.channel_id, ctx.crypto, ctx.state)
-                .await?;
-        }
-        PacketId::LeaveChannel => {
-            let m = LeaveChannelPayload::decode(payload)?;
-            channel::leave(ctx.stream, ctx.seq, session_id, &m.channel_id, ctx.crypto, ctx.state)
-                .await?;
-        }
-        PacketId::ChannelCreate => {
-            channel::handle_channel_create(
+            channel::join(
                 ctx.stream,
                 ctx.seq,
                 session_id,
-                payload,
+                &m.channel_id,
                 ctx.crypto,
                 ctx.state,
             )
             .await?;
         }
-        PacketId::ChannelDelete => {
-            channel::handle_channel_delete(
+        PacketId::LeaveChannel => {
+            let m = LeaveChannelPayload::decode(payload)?;
+            channel::leave(
                 ctx.stream,
                 ctx.seq,
                 session_id,
-                payload,
+                &m.channel_id,
                 ctx.crypto,
                 ctx.state,
+            )
+            .await?;
+        }
+        PacketId::ChannelCreate => {
+            channel::handle_channel_create(
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
+            )
+            .await?;
+        }
+        PacketId::ChannelDelete => {
+            channel::handle_channel_delete(
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
@@ -76,67 +80,37 @@ pub async fn dispatch<S: AsyncRead + AsyncWrite + Unpin>(
         }
         PacketId::DmStart => {
             direct_message::handle_dm_start(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::DmMessage => {
             direct_message::handle_dm_message(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::DmHistory => {
             direct_message::handle_dm_history(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::DmReadAck => {
             direct_message::handle_dm_read_ack(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::GuildCreate => {
             guild::handle_guild_create(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::GuildDelete => {
             guild::handle_guild_delete(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
@@ -146,209 +120,115 @@ pub async fn dispatch<S: AsyncRead + AsyncWrite + Unpin>(
         }
         PacketId::GuildMemberJoin => {
             guild::handle_guild_member_join(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::GuildMemberLeave => {
             guild::handle_guild_member_leave(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::GuildMemberKick => {
             guild::handle_guild_member_kick(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::RoleCreate => {
             guild::handle_role_create(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::RoleDelete => {
             guild::handle_role_delete(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::InviteCreate => {
             guild::handle_invite_create(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::InviteAccept => {
             guild::handle_invite_accept(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::InviteDelete => {
             guild::handle_invite_delete(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::GuildAuditLogFetch => {
             guild::handle_audit_log_fetch(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::GuildMemberListFetch => {
             guild::handle_member_list_fetch(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::GuildRoleAssign => {
             guild::handle_role_assign(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::GuildRoleUnassign => {
             guild::handle_role_unassign(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::GuildRoleListFetch => {
             guild::handle_role_list_fetch(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::PresenceUpdate => {
             content::presence::handle_presence_update(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::PresenceSync => {
             content::presence::handle_presence_sync(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::FriendRequest => {
             friends::handle_friend_request(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::FriendAccept => {
             friends::handle_friend_accept(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::FriendDecline => {
             friends::handle_friend_decline(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::FriendRemove => {
             friends::handle_friend_remove(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
@@ -358,23 +238,13 @@ pub async fn dispatch<S: AsyncRead + AsyncWrite + Unpin>(
         }
         PacketId::BlockUser => {
             friends::handle_block_user(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
         PacketId::UnblockUser => {
             friends::handle_unblock_user(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }
@@ -401,12 +271,7 @@ pub async fn dispatch<S: AsyncRead + AsyncWrite + Unpin>(
         }
         PacketId::ReadReceipt => {
             content::handle_read_receipt(
-                ctx.stream,
-                ctx.seq,
-                session_id,
-                payload,
-                ctx.crypto,
-                ctx.state,
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
         }

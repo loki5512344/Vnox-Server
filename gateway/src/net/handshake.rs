@@ -83,7 +83,11 @@ pub async fn run(
         return Err(anyhow::anyhow!("auth failed"));
     }
 
-    if state.storage.is_banned(&hex::encode(&msg.client_pubkey)).await? {
+    if state
+        .storage
+        .is_banned(&hex::encode(&msg.client_pubkey))
+        .await?
+    {
         state.metrics.inc(&state.metrics.auth_failures);
         io::send_error(stream, seq, proto::ErrorCode::AuthFailed, "banned").await?;
         return Err(anyhow::anyhow!("banned"));

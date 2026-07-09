@@ -110,16 +110,16 @@ pub async fn join(
         });
     }
 
-    if let Some(tx) = &state.voice_member_tx {
-        if let Some(sess) = session::get(&state.sessions, session_id).await {
-            let event = serde_json::json!({
-                "type": "joined",
-                "channel_id": channel_id,
-                "session_id": session_id,
-                "user_id": sess.user_id,
-            });
-            let _ = tx.send(event.to_string());
-        }
+    if let Some(tx) = &state.voice_member_tx
+        && let Some(sess) = session::get(&state.sessions, session_id).await
+    {
+        let event = serde_json::json!({
+            "type": "joined",
+            "channel_id": channel_id,
+            "session_id": session_id,
+            "user_id": sess.user_id,
+        });
+        let _ = tx.send(event.to_string());
     }
 
     info!("session {} joined {channel_id}", &session_id[..8]);

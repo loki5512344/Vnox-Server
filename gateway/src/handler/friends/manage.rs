@@ -33,7 +33,11 @@ pub async fn handle_friend_remove(
         stream,
         PacketId::FriendRemove,
         seq,
-        &to_payload(&SimpleResponsePayload { ok: true, user_id: None, role_id: None }),
+        &to_payload(&SimpleResponsePayload {
+            ok: true,
+            user_id: None,
+            role_id: None,
+        }),
         crypto,
     )
     .await?;
@@ -62,7 +66,11 @@ pub async fn handle_block_user(
         stream,
         PacketId::BlockUser,
         seq,
-        &to_payload(&SimpleResponsePayload { ok: true, user_id: None, role_id: None }),
+        &to_payload(&SimpleResponsePayload {
+            ok: true,
+            user_id: None,
+            role_id: None,
+        }),
         crypto,
     )
     .await?;
@@ -91,7 +99,11 @@ pub async fn handle_unblock_user(
         stream,
         PacketId::UnblockUser,
         seq,
-        &to_payload(&SimpleResponsePayload { ok: true, user_id: None, role_id: None }),
+        &to_payload(&SimpleResponsePayload {
+            ok: true,
+            user_id: None,
+            role_id: None,
+        }),
         crypto,
     )
     .await?;

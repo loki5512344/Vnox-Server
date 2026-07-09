@@ -1,11 +1,7 @@
-mod voice_membership;
-
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tracing::info;
-
-
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -22,10 +18,7 @@ async fn main() -> Result<()> {
     let cfg: vnox_gateway::domain::config::Config =
         toml::from_str(&text).map_err(|e| anyhow::anyhow!("invalid config: {e}"))?;
 
-    info!(
-        "VNOX Server starting — node: {}",
-        cfg.node.name
-    );
+    info!("VNOX Server starting — node: {}", cfg.node.name);
     info!("Gateway TCP: {}", cfg.gateway.bind);
     info!("Voice UDP: {}", cfg.voice.bind);
 
@@ -59,9 +52,8 @@ async fn main() -> Result<()> {
         vnox_voice_node::runner::run_bind(&node_name, &voice_bind).await
     });
 
-    let gate_handle = tokio::spawn(async move {
-        vnox_gateway::run(gate_cfg, Some(voice_member_tx)).await
-    });
+    let gate_handle =
+        tokio::spawn(async move { vnox_gateway::run(gate_cfg, Some(voice_member_tx)).await });
 
     tokio::select! {
         r = voice_handle => {

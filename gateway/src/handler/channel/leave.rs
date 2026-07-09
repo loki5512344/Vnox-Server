@@ -2,7 +2,11 @@ use anyhow::Result;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::info;
 
-use crate::{domain::{channels, session}, net::state::State, proto::SessionCrypto};
+use crate::{
+    domain::{channels, session},
+    net::state::State,
+    proto::SessionCrypto,
+};
 
 use super::{broadcast_leave, set_channel};
 
@@ -22,16 +26,16 @@ pub async fn leave(
     set_channel(state, session_id, None).await;
     broadcast_leave(state, channel_id, session_id).await;
 
-    if let Some(tx) = &state.voice_member_tx {
-        if let Some(ref uid) = user_id {
-            let event = serde_json::json!({
-                "type": "left",
-                "channel_id": channel_id,
-                "session_id": session_id,
-                "user_id": uid,
-            });
-            let _ = tx.send(event.to_string());
-        }
+    if let Some(tx) = &state.voice_member_tx
+        && let Some(ref uid) = user_id
+    {
+        let event = serde_json::json!({
+            "type": "left",
+            "channel_id": channel_id,
+            "session_id": session_id,
+            "user_id": uid,
+        });
+        let _ = tx.send(event.to_string());
     }
 
     info!("session {} left {channel_id}", &session_id[..8]);

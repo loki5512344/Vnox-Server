@@ -12,7 +12,7 @@ pub use crypto::SessionCrypto;
 
 // Re-export everything so `crate::proto::X` works as before
 pub use framing::{encode_packet, to_payload};
-pub use packet::{flags, ErrorCode, PacketHeader, PacketId};
+pub use packet::{ErrorCode, PacketHeader, PacketId, flags};
 
 // ─── Backward-compat type aliases ────────────────────────────────
 // Handshake
