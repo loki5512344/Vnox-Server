@@ -1,7 +1,7 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
-use tokio::sync::{RwLock, broadcast};
+use std::sync::Arc;
+use tokio::sync::{broadcast, RwLock};
 
 use crate::admin::metrics::Metrics;
 use crate::bootstrap::server_identity::ServerIdentity;
@@ -10,6 +10,8 @@ use crate::domain::{
     channels::ChannelStore, config::Config, session::SessionStore, storage::Storage,
 };
 use crate::proto::PresenceInfo;
+
+pub type VoiceMemberTx = tokio::sync::broadcast::Sender<String>;
 
 #[derive(Clone)]
 pub struct State {
@@ -30,6 +32,8 @@ pub struct State {
     pub channels_count: Arc<AtomicUsize>,
     /// Per-session rate limiter (token bucket).
     pub rate_limiter: Arc<RateLimiter>,
+    /// Gateway → voice-node membership bridge.
+    pub voice_member_tx: Option<VoiceMemberTx>,
 }
 
 impl State {
@@ -44,6 +48,7 @@ impl State {
         metrics: Arc<Metrics>,
         sessions_count: Arc<AtomicUsize>,
         channels_count: Arc<AtomicUsize>,
+        voice_member_tx: Option<VoiceMemberTx>,
     ) -> Self {
         let rate_per_sec = config.gateway.message_rate_per_sec.unwrap_or(5.0);
         let burst = config.gateway.message_rate_burst.unwrap_or(10);
@@ -60,6 +65,7 @@ impl State {
             sessions_count,
             channels_count,
             rate_limiter,
+            voice_member_tx,
         }
     }
 }

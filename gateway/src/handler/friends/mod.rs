@@ -4,7 +4,7 @@ mod manage;
 mod requests;
 
 use anyhow::Result;
-use tokio::net::TcpStream;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
     net::io,
@@ -12,7 +12,7 @@ use crate::{
 };
 
 async fn send_err(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     code: crate::proto::ErrorCode,
     msg: &str,

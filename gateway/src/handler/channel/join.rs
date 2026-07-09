@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tokio::net::TcpStream;
+use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::info;
 
 use crate::{
@@ -19,7 +19,7 @@ use super::{broadcast_leave, set_channel};
 const HISTORY_LIMIT: i64 = 50;
 
 pub async fn join(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     channel_id: &str,
@@ -108,6 +108,18 @@ pub async fn join(
             target_session_id: None,
             data: encode_packet(PacketId::UserJoin, 0, &to_payload(&jp)),
         });
+    }
+
+    if let Some(tx) = &state.voice_member_tx {
+        if let Some(sess) = session::get(&state.sessions, session_id).await {
+            let event = serde_json::json!({
+                "type": "joined",
+                "channel_id": channel_id,
+                "session_id": session_id,
+                "user_id": sess.user_id,
+            });
+            let _ = tx.send(event.to_string());
+        }
     }
 
     info!("session {} joined {channel_id}", &session_id[..8]);

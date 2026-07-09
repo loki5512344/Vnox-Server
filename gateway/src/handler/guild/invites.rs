@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tokio::net::TcpStream;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
     domain::{permissions::Permissions, session},
@@ -13,7 +13,7 @@ use crate::{
 use super::{now_ms, send_err};
 
 pub async fn handle_invite_create(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     payload: &[u8],
@@ -89,7 +89,7 @@ pub async fn handle_invite_create(
 }
 
 pub async fn handle_invite_accept(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     payload: &[u8],
@@ -164,7 +164,7 @@ pub async fn handle_invite_accept(
 }
 
 pub async fn handle_invite_delete(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     payload: &[u8],

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tokio::net::TcpStream;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
     domain::{permissions::Permissions, session},
@@ -15,7 +15,7 @@ use super::{require_perm, send_err};
 
 /// Fetch the member list for a guild (visible to all members).
 pub async fn handle_member_list_fetch(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     payload: &[u8],
@@ -65,7 +65,7 @@ pub async fn handle_member_list_fetch(
 
 /// Assign a role to a user (admin only: requires MANAGE_ROLES).
 pub async fn handle_role_assign(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     payload: &[u8],
@@ -129,7 +129,7 @@ pub async fn handle_role_assign(
 
 /// Remove a role from a user (admin only: requires MANAGE_ROLES).
 pub async fn handle_role_unassign(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     payload: &[u8],
@@ -192,7 +192,7 @@ pub async fn handle_role_unassign(
 
 /// Fetch all roles defined in a guild (visible to all members).
 pub async fn handle_role_list_fetch(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     payload: &[u8],

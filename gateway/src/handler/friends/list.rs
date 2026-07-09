@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tokio::net::TcpStream;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
     domain::session,
@@ -8,7 +8,7 @@ use crate::{
 };
 
 pub async fn handle_friend_list(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     crypto: &SessionCrypto,

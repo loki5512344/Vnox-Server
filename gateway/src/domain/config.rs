@@ -90,6 +90,15 @@ pub struct GatewayConfig {
     /// Defaults to 10.
     #[serde(default)]
     pub message_rate_burst: Option<u32>,
+    /// Enable TLS 1.3 on the TCP listener.
+    #[serde(default)]
+    pub tls_enabled: bool,
+    /// Path to TLS certificate file (PEM).
+    #[serde(default)]
+    pub tls_cert_path: Option<String>,
+    /// Path to TLS private key file (PEM).
+    #[serde(default)]
+    pub tls_key_path: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

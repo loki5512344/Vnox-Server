@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tokio::net::TcpStream;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
     domain::session,
@@ -14,7 +14,7 @@ use crate::{
 };
 
 pub async fn handle_presence_update(
-    _stream: &mut TcpStream,
+    _stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     payload: &[u8],
@@ -60,7 +60,7 @@ pub async fn handle_presence_update(
 }
 
 pub async fn handle_presence_sync(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     crypto: &SessionCrypto,

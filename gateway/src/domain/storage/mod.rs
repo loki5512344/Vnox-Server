@@ -35,7 +35,13 @@ impl Storage {
              CREATE TABLE IF NOT EXISTS users (
                 pubkey TEXT PRIMARY KEY, nickname TEXT NOT NULL, first_seen INTEGER NOT NULL
              );
-             CREATE TABLE IF NOT EXISTS bans (
+              CREATE TABLE IF NOT EXISTS channels (
+                 id TEXT PRIMARY KEY,
+                 name TEXT NOT NULL,
+                 kind TEXT NOT NULL DEFAULT 'text',
+                 created_at INTEGER NOT NULL
+              );
+              CREATE TABLE IF NOT EXISTS bans (
                 pubkey TEXT PRIMARY KEY, reason TEXT, banned_at INTEGER NOT NULL
              );
              CREATE TABLE IF NOT EXISTS direct_messages (
@@ -213,6 +219,68 @@ pub(crate) fn generate_invite_code() -> String {
     use std::hash::{BuildHasher, Hasher};
     let hash = RandomState::new().build_hasher().finish();
     format!("{:08x}", hash % 0x100000000u64)
+}
+
+use crate::domain::channels::{ChannelKind, ChannelStore};
+
+#[derive(Debug, Clone)]
+pub struct ChannelRecord {
+    pub id: String,
+    pub name: String,
+    pub kind: String,
+    pub created_at: i64,
+}
+
+impl Storage {
+    pub async fn create_channel(&self, id: &str, name: &str, kind: &str) -> Result<bool> {
+        let result = sqlx::query(
+            "INSERT OR IGNORE INTO channels (id, name, kind, created_at) VALUES (?, ?, ?, ?)",
+        )
+        .bind(id)
+        .bind(name)
+        .bind(kind)
+        .bind(now_ms())
+        .execute(&self.pool)
+        .await?;
+        Ok(result.rows_affected() > 0)
+    }
+
+    pub async fn delete_channel(&self, id: &str) -> Result<bool> {
+        let result = sqlx::query("DELETE FROM channels WHERE id=?")
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+        Ok(result.rows_affected() > 0)
+    }
+
+    pub async fn list_channels(&self) -> Result<Vec<ChannelRecord>> {
+        let rows = sqlx::query_as::<_, (String, String, String, i64)>(
+            "SELECT id, name, kind, created_at FROM channels",
+        )
+        .fetch_all(&self.pool)
+        .await?
+        .into_iter()
+        .map(|(id, name, kind, created_at)| ChannelRecord {
+            id,
+            name,
+            kind,
+            created_at,
+        })
+        .collect();
+        Ok(rows)
+    }
+
+    pub async fn load_channels_to_cache(&self, channel_store: &ChannelStore) -> Result<()> {
+        let channels = self.list_channels().await?;
+        for ch in channels {
+            let kind = match ch.kind.as_str() {
+                "voice" => ChannelKind::Voice,
+                _ => ChannelKind::Text,
+            };
+            crate::domain::channels::create(channel_store, &ch.id, &ch.name, kind).await;
+        }
+        Ok(())
+    }
 }
 
 pub(crate) fn now_ms() -> i64 {

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tokio::net::TcpStream;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
     domain::{permissions::Permissions, session},
@@ -13,7 +13,7 @@ use crate::{
 use super::send_err;
 
 pub async fn handle_guild_member_join(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     payload: &[u8],
@@ -63,7 +63,7 @@ pub async fn handle_guild_member_join(
 }
 
 pub async fn handle_guild_member_leave(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     payload: &[u8],
@@ -96,7 +96,7 @@ pub async fn handle_guild_member_leave(
 }
 
 pub async fn handle_guild_member_kick(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     payload: &[u8],

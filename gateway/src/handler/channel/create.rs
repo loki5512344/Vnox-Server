@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tokio::net::TcpStream;
+use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{info, warn};
 
 use crate::{
@@ -17,7 +17,7 @@ use crate::{
 /// Handle a ChannelCreate request — register a new channel in the store and
 /// broadcast the new ChannelState to all sessions so their sidebars update.
 pub async fn handle_channel_create(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     payload: &[u8],
@@ -97,6 +97,17 @@ pub async fn handle_channel_create(
 
     let created = channels::create(&state.channels, &channel_id, &channel_name, kind.clone()).await;
 
+    // Persist to DB (best-effort, log and continue on failure).
+    if created {
+        if let Err(e) = state
+            .storage
+            .create_channel(&channel_id, &channel_name, kind.as_str())
+            .await
+        {
+            warn!("failed to persist channel to storage: {e}");
+        }
+    }
+
     if !created {
         io::send_encrypted(
             stream,
@@ -160,7 +171,7 @@ pub async fn handle_channel_create(
 /// Handle a ChannelDelete request — remove the channel from the store and
 /// broadcast the deletion to all sessions.
 pub async fn handle_channel_delete(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     payload: &[u8],
@@ -190,6 +201,14 @@ pub async fn handle_channel_delete(
     }
 
     let existed = channels::delete(&state.channels, &req.channel_id).await;
+
+    // Remove from DB (best-effort).
+    if existed {
+        if let Err(e) = state.storage.delete_channel(&req.channel_id).await {
+            warn!("failed to remove channel from storage: {e}");
+        }
+    }
+
     if !existed {
         io::send_encrypted(
             stream,
@@ -229,7 +248,7 @@ pub async fn handle_channel_delete(
 
 /// Handle a ChannelList request — reply with all known channels.
 pub async fn handle_channel_list(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     crypto: &SessionCrypto,

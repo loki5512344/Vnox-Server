@@ -1,6 +1,5 @@
 use anyhow::Result;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 use crate::proto::{
     ErrorCode, ErrorPayload, PacketHeader, PacketId, SessionCrypto, encode_packet, flags,
@@ -9,10 +8,8 @@ use crate::proto::{
 
 const MAX_PAYLOAD: u32 = 4 * 1024 * 1024;
 
-// ─── Unencrypted IO (used during handshake) ─────────────────────────────────
-
 pub async fn send_packet(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     id: PacketId,
     seq: &mut u32,
     payload: &[u8],
@@ -24,7 +21,7 @@ pub async fn send_packet(
 }
 
 pub async fn send_error(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     code: ErrorCode,
     msg: &str,
@@ -37,7 +34,9 @@ pub async fn send_error(
     send_packet(stream, PacketId::Error, seq, &to_payload(&p)).await
 }
 
-pub async fn read_packet(stream: &mut TcpStream) -> Result<(PacketHeader, Vec<u8>)> {
+pub async fn read_packet(
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
+) -> Result<(PacketHeader, Vec<u8>)> {
     let mut buf = [0u8; PacketHeader::SIZE];
     stream.read_exact(&mut buf).await?;
     let hdr = PacketHeader::from_bytes(&buf);
@@ -54,12 +53,8 @@ pub async fn read_packet(stream: &mut TcpStream) -> Result<(PacketHeader, Vec<u8
     Ok((hdr, payload))
 }
 
-// ─── Encrypted IO (used after handshake) ─────────────────────────────────────
-
-/// Send an encrypted packet (server → client).
-/// Sets the ENCRYPTED flag and encrypts the payload with s2c_key.
 pub async fn send_encrypted(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     id: PacketId,
     seq: &mut u32,
     payload: &[u8],
@@ -81,10 +76,8 @@ pub async fn send_encrypted(
     Ok(())
 }
 
-/// Read and decrypt a packet (client → server).
-/// Verifies the ENCRYPTED flag and decrypts with c2s_key.
 pub async fn read_encrypted(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     crypto: &SessionCrypto,
 ) -> Result<(PacketHeader, Vec<u8>)> {
     let mut buf = [0u8; PacketHeader::SIZE];
@@ -107,12 +100,8 @@ pub async fn read_encrypted(
     Ok((hdr, payload))
 }
 
-/// Re-encode and deliver a pre-encoded broadcast packet with encryption.
-///
-/// Extracts the packet ID from the pre-encoded `raw_data`, re-encodes
-/// with the correct sequence and encryption for this recipient.
 pub async fn deliver_encrypted(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     crypto: &SessionCrypto,
     seq: &mut u32,
     raw_data: &[u8],

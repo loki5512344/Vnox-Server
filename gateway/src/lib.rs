@@ -8,14 +8,15 @@ pub mod proto;
 use anyhow::Result;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tracing::{debug, error, info, warn};
 
 use domain::{channels, config, session, storage};
-use net::state::State;
+use net::state::{State, VoiceMemberTx};
 
-pub async fn run(cfg: Arc<config::Config>) -> Result<()> {
+pub async fn run(cfg: Arc<config::Config>, voice_member_tx: Option<VoiceMemberTx>) -> Result<()> {
     let private_mode = cfg.is_private();
     if private_mode {
         info!("private mode enabled, federation disabled");
@@ -74,6 +75,7 @@ pub async fn run(cfg: Arc<config::Config>) -> Result<()> {
         metrics.clone(),
         sessions_count.clone(),
         channels_count.clone(),
+        voice_member_tx,
     );
 
     let admin_bind = cfg
@@ -95,11 +97,52 @@ pub async fn run(cfg: Arc<config::Config>) -> Result<()> {
     let listener = TcpListener::bind(&cfg.gateway.bind).await?;
     info!("listening on {}", cfg.gateway.bind);
 
+    if cfg.gateway.tls_enabled {
+        run_tls(listener, cfg, state).await
+    } else {
+        run_plain(listener, state).await
+    }
+}
+
+async fn run_tls(listener: TcpListener, cfg: Arc<config::Config>, state: State) -> Result<()> {
+    let (certs, key) = load_or_generate_tls_certs(&cfg.gateway)?;
+    if cfg.gateway.tls_cert_path.is_none() {
+        warn!("using self-signed TLS certificate — clients must accept it manually");
+    }
+    let server_config = rustls::ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(certs, key)?;
+    let acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(server_config));
+
+    loop {
+        match listener.accept().await {
+            Ok((stream, addr)) => {
+                info!("connection from {addr} (TLS)");
+                state.metrics.inc(&state.metrics.connections_total);
+                let s = state.clone();
+                let acceptor = acceptor.clone();
+                tokio::spawn(async move {
+                    match acceptor.accept(stream).await {
+                        Ok(tls_stream) => {
+                            if let Err(e) = handle(tls_stream, addr, s).await {
+                                debug!("{addr} closed: {e}");
+                            }
+                        }
+                        Err(e) => error!("TLS accept error from {addr}: {e}"),
+                    }
+                });
+            }
+            Err(e) => error!("accept: {e}"),
+        }
+    }
+}
+
+async fn run_plain(listener: TcpListener, state: State) -> Result<()> {
     loop {
         match listener.accept().await {
             Ok((stream, addr)) => {
                 info!("connection from {addr}");
-                metrics.inc(&metrics.connections_total);
+                state.metrics.inc(&state.metrics.connections_total);
                 let s = state.clone();
                 tokio::spawn(async move {
                     if let Err(e) = handle(stream, addr, s).await {
@@ -112,8 +155,8 @@ pub async fn run(cfg: Arc<config::Config>) -> Result<()> {
     }
 }
 
-async fn handle(
-    mut stream: tokio::net::TcpStream,
+async fn handle<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
+    mut stream: S,
     addr: std::net::SocketAddr,
     state: State,
 ) -> Result<()> {
@@ -163,4 +206,33 @@ async fn handle(
     state.rate_limiter.remove(&sid);
     debug!("{addr} cleaned up");
     result
+}
+
+fn load_or_generate_tls_certs(
+    cfg: &config::GatewayConfig,
+) -> Result<(
+    Vec<rustls::pki_types::CertificateDer<'static>>,
+    rustls::pki_types::PrivateKeyDer<'static>,
+)> {
+    use rustls::pki_types::pem::PemObject;
+    use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
+
+    match (&cfg.tls_cert_path, &cfg.tls_key_path) {
+        (Some(cert_path), Some(key_path)) => {
+            let cert_pem = std::fs::read_to_string(cert_path)?;
+            let key_pem = std::fs::read_to_string(key_path)?;
+            let cert = CertificateDer::from_pem_reader(&mut cert_pem.as_bytes())?;
+            let key = PrivateKeyDer::from_pem_reader(&mut key_pem.as_bytes())?;
+            Ok((vec![cert], key))
+        }
+        _ => {
+            info!("No TLS cert/key configured, generating self-signed certificate");
+            let certified_key = rcgen::generate_simple_self_signed(vec!["VNOX Server".into()])?;
+            let cert_der = certified_key.cert.der().clone();
+            let key_der = PrivateKeyDer::from(PrivatePkcs8KeyDer::from(
+                certified_key.key_pair.serialize_der(),
+            ));
+            Ok((vec![cert_der], key_der))
+        }
+    }
 }

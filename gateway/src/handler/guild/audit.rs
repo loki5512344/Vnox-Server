@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tokio::net::TcpStream;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
     domain::permissions::Permissions,
@@ -12,7 +12,7 @@ use crate::{
 
 /// Fetch audit log entries for a guild (admin-only: requires VIEW_AUDIT_LOG or owner).
 pub async fn handle_audit_log_fetch(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     payload: &[u8],

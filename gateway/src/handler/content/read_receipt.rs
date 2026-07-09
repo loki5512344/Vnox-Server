@@ -7,7 +7,7 @@ use crate::{
 };
 
 pub async fn handle_read_receipt(
-    _stream: &mut tokio::net::TcpStream,
+    _stream: &mut (impl tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     payload: &[u8],

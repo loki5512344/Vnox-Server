@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tokio::net::TcpStream;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
     domain::session,
@@ -11,7 +11,7 @@ use crate::{
 };
 
 pub async fn handle_friend_remove(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     payload: &[u8],
@@ -40,7 +40,7 @@ pub async fn handle_friend_remove(
 }
 
 pub async fn handle_block_user(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     payload: &[u8],
@@ -69,7 +69,7 @@ pub async fn handle_block_user(
 }
 
 pub async fn handle_unblock_user(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     payload: &[u8],
@@ -98,7 +98,7 @@ pub async fn handle_unblock_user(
 }
 
 pub async fn handle_block_list(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     crypto: &SessionCrypto,

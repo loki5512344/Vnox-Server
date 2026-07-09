@@ -8,5 +8,5 @@ async fn main() -> Result<()> {
         .init();
 
     let cfg = Arc::new(vnox_gateway::domain::config::load()?);
-    vnox_gateway::run(cfg).await
+    vnox_gateway::run(cfg, None).await
 }

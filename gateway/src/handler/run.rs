@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tokio::net::TcpStream;
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::broadcast;
 use tracing::warn;
 
@@ -10,8 +10,8 @@ use crate::{
 
 use super::{Ctx, deliver::deliver_encrypted, dispatch};
 
-pub async fn run_session(
-    stream: &mut TcpStream,
+pub async fn run_session<S: AsyncRead + AsyncWrite + Unpin>(
+    stream: &mut S,
     addr: std::net::SocketAddr,
     seq: &mut u32,
     session_id: &str,

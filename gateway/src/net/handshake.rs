@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tokio::net::TcpStream;
+use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{debug, info, warn};
 
 use crate::{
@@ -16,7 +16,7 @@ const LNEX_VERSION: &str = "v1";
 /// Returns the session and the derived crypto context (encryption keys).
 /// All subsequent packets must be encrypted with `crypto`.
 pub async fn run(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     addr: std::net::SocketAddr,
     state: &State,
     seq: &mut u32,

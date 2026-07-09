@@ -7,7 +7,7 @@ mod members_list;
 mod roles;
 
 use anyhow::Result;
-use tokio::net::TcpStream;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
     domain::permissions::Permissions,
@@ -16,7 +16,7 @@ use crate::{
 };
 
 async fn send_err(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     code: crate::proto::ErrorCode,
     msg: &str,

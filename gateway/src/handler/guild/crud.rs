@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tokio::net::TcpStream;
+use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::debug;
 
 use crate::{
@@ -11,7 +11,7 @@ use crate::{
 use super::send_err;
 
 pub async fn handle_guild_create(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     payload: &[u8],
@@ -67,7 +67,7 @@ pub async fn handle_guild_create(
 }
 
 pub async fn handle_guild_delete(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
     payload: &[u8],
