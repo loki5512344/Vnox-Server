@@ -30,27 +30,25 @@ pub async fn run(cfg: Arc<config::Config>, voice_member_tx: Option<VoiceMemberTx
     if let Some(limit) = cfg.gateway.max_connections {
         info!("max_connections configured: {limit} (not enforced yet)");
     }
-    match cfg.storage.backend.as_deref().unwrap_or("sqlite") {
-        "sqlite" => {
-            if cfg.storage.postgres_url.is_some() {
-                warn!("storage.postgres_url is set but backend=sqlite; postgres_url is ignored");
-            }
-        }
+    let storage = match cfg.storage.backend.as_deref().unwrap_or("sqlite") {
         "postgres" => {
-            warn!("backend=postgres is not implemented yet; sqlite storage will be used");
-            if cfg.storage.postgres_url.is_none() {
-                warn!("backend=postgres configured but storage.postgres_url is missing");
-            }
+            let url = cfg
+                .storage
+                .postgres_url
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("postgres_url required for postgres backend"))?;
+            storage::Storage::connect_postgres(url).await?
         }
-        other => warn!("unknown storage backend '{other}'; sqlite storage will be used"),
-    }
-
-    let sqlite = cfg
-        .storage
-        .sqlite_path
-        .as_ref()
-        .map(|p| p.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "./dev/data/vnox.db".into());
+        _ => {
+            let sqlite = cfg
+                .storage
+                .sqlite_path
+                .as_ref()
+                .map(|p| p.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "./dev/data/vnox.db".into());
+            storage::Storage::connect_sqlite(&sqlite).await?
+        }
+    };
 
     let server_identity = Arc::new(
         bootstrap::server_identity::ServerIdentity::load_or_generate(&cfg.storage.data_dir)?,
@@ -68,7 +66,7 @@ pub async fn run(cfg: Arc<config::Config>, voice_member_tx: Option<VoiceMemberTx
     let state = State::new(
         session::new_store(),
         channels::new_store(),
-        Arc::new(storage::Storage::connect(&sqlite).await?),
+        Arc::new(storage),
         cfg.clone(),
         server_identity,
         tx,

@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+
 use anyhow::Result;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::info;
@@ -25,6 +27,7 @@ pub async fn join(
     channel_id: &str,
     crypto: &SessionCrypto,
     state: &State,
+    addr: SocketAddr,
 ) -> Result<()> {
     let prev_channel = session::get(&state.sessions, session_id)
         .await
@@ -110,14 +113,15 @@ pub async fn join(
         });
     }
 
-    if let Some(tx) = &state.voice_member_tx
+    if ch.kind == channels::ChannelKind::Voice
+        && let Some(tx) = &state.voice_member_tx
         && let Some(sess) = session::get(&state.sessions, session_id).await
     {
         let event = serde_json::json!({
-            "type": "joined",
+            "type": "join",
             "channel_id": channel_id,
-            "session_id": session_id,
             "user_id": sess.user_id,
+            "endpoint": format!("{}:{}", addr.ip(), addr.port()),
         });
         let _ = tx.send(event.to_string());
     }

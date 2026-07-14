@@ -11,7 +11,7 @@ use crate::{
     },
 };
 
-use super::{Ctx, channel, content, direct_message, friends, guild};
+use super::{Ctx, channel, content, direct_message, e2ee, friends, guild};
 
 pub async fn dispatch<S: AsyncRead + AsyncWrite + Unpin>(
     ctx: &mut Ctx<'_, S>,
@@ -43,6 +43,7 @@ pub async fn dispatch<S: AsyncRead + AsyncWrite + Unpin>(
                 &m.channel_id,
                 ctx.crypto,
                 ctx.state,
+                addr,
             )
             .await?;
         }
@@ -66,6 +67,12 @@ pub async fn dispatch<S: AsyncRead + AsyncWrite + Unpin>(
         }
         PacketId::ChannelDelete => {
             channel::handle_channel_delete(
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
+            )
+            .await?;
+        }
+        PacketId::ChannelEdit => {
+            channel::handle_channel_edit(
                 ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;
@@ -271,6 +278,30 @@ pub async fn dispatch<S: AsyncRead + AsyncWrite + Unpin>(
         }
         PacketId::ReadReceipt => {
             content::handle_read_receipt(
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
+            )
+            .await?;
+        }
+        PacketId::E2eeDmKeyExchange => {
+            e2ee::handle_e2ee_key_exchange(
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
+            )
+            .await?;
+        }
+        PacketId::E2eeDmKeyExchangeAck => {
+            e2ee::handle_e2ee_key_exchange_ack(
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
+            )
+            .await?;
+        }
+        PacketId::E2eeDmMessage => {
+            e2ee::handle_e2ee_dm_message(
+                ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
+            )
+            .await?;
+        }
+        PacketId::E2eeDmHistory => {
+            e2ee::handle_e2ee_dm_history(
                 ctx.stream, ctx.seq, session_id, payload, ctx.crypto, ctx.state,
             )
             .await?;

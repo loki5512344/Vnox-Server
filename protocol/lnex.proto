@@ -64,6 +64,11 @@ message ChannelCreate {
 
 message ChannelDelete { string channel_id = 1; }
 
+message ChannelEdit {
+  string channel_id   = 1;
+  string channel_name = 2;
+}
+
 message ChannelList { repeated ChannelListItem channels = 1; }
 
 message ChannelListItem {
@@ -358,4 +363,28 @@ message SimpleResponse {
   bool            ok       = 1;
   optional string user_id  = 2;
   optional string role_id  = 3;
+}
+
+// ─── E2EE for Direct Messages ────────────────────────────────────────────────
+
+message E2eeDmKeyExchange {
+  string dm_id           = 1;
+  bytes  e2ee_public_key = 2;
+}
+
+message E2eeDmKeyExchangeAck {
+  string dm_id = 1;
+}
+
+message E2eeDmMessage {
+  string dm_id     = 1;
+  string sender_id = 2;
+  bytes  ciphertext = 3;
+  int64  timestamp  = 4;
+}
+
+message E2eeDmHistory {
+  string          dm_id         = 1;
+  repeated E2eeDmMessage messages = 2;
+  optional int64  limit         = 3;
 }

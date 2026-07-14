@@ -26,30 +26,10 @@ async fn main() -> Result<()> {
     let voice_bind = cfg.voice.bind.clone();
     let gate_cfg = Arc::new(cfg);
 
-    let (voice_member_tx, _) = broadcast::channel::<String>(256);
-    let mut voice_member_rx = voice_member_tx.subscribe();
+    let (voice_member_tx, voice_member_rx) = broadcast::channel::<String>(256);
 
     let voice_handle = tokio::spawn(async move {
-        tokio::spawn(async move {
-            while let Ok(event_str) = voice_member_rx.recv().await {
-                if let Ok(event) = serde_json::from_str::<serde_json::Value>(&event_str) {
-                    let event_type = event["type"].as_str().unwrap_or("");
-                    let channel_id = event["channel_id"].as_str().unwrap_or("");
-                    let user_id = event["user_id"].as_str().unwrap_or("");
-                    match event_type {
-                        "joined" => {
-                            info!("voice member joined channel {}: {}", channel_id, user_id);
-                        }
-                        "left" => {
-                            info!("voice member left channel {}: {}", channel_id, user_id);
-                        }
-                        _ => {}
-                    }
-                }
-            }
-        });
-
-        vnox_voice_node::runner::run_bind(&node_name, &voice_bind).await
+        vnox_voice_node::runner::run_bind(&node_name, &voice_bind, voice_member_rx).await
     });
 
     let gate_handle =

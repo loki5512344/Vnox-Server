@@ -1,8 +1,10 @@
 pub mod create;
+pub mod edit;
 pub mod join;
 pub mod leave;
 
 pub use create::{handle_channel_create, handle_channel_delete, handle_channel_list};
+pub use edit::handle_channel_edit;
 pub use join::join;
 pub use leave::leave;
 

@@ -95,3 +95,31 @@ pub async fn touch_member(channels: &ChannelMap, channel_id: u64, addr: SocketAd
         .members
         .insert(addr, Instant::now());
 }
+
+// ─── Gateway-to-voice-node membership bridge ──────────────────────────────────
+
+/// user_id → socket address (the UDP endpoint reported by the gateway).
+pub type UserMap = Arc<RwLock<HashMap<String, SocketAddr>>>;
+
+pub fn new_user_map() -> UserMap {
+    Arc::new(RwLock::new(HashMap::new()))
+}
+
+pub async fn add_user_mapping(map: &UserMap, user_id: String, addr: SocketAddr) {
+    map.write().await.insert(user_id, addr);
+}
+
+pub async fn remove_user_mapping(map: &UserMap, user_id: &str) -> Option<SocketAddr> {
+    map.write().await.remove(user_id)
+}
+
+/// Remove `addr` from every channel's member and sender sets,
+/// dropping any channel that becomes empty.
+pub async fn remove_member_from_all(channels: &ChannelMap, addr: &SocketAddr) {
+    let mut lock = channels.write().await;
+    lock.retain(|_, state| {
+        state.members.remove(addr);
+        state.senders.retain(|_, s| s != addr);
+        !state.members.is_empty()
+    });
+}

@@ -1,6 +1,8 @@
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::net::UdpSocket;
+use tokio::sync::broadcast;
 use tracing::{debug, error, info, warn};
 
 use crate::relay;
@@ -9,10 +11,15 @@ use crate::{
 };
 
 pub async fn run(config: Config) -> anyhow::Result<()> {
-    run_bind(&config.node.name, &config.voice.bind).await
+    let (_, rx) = broadcast::channel(1);
+    run_bind(&config.node.name, &config.voice.bind, rx).await
 }
 
-pub async fn run_bind(node_name: &str, bind: &str) -> anyhow::Result<()> {
+pub async fn run_bind(
+    node_name: &str,
+    bind: &str,
+    mut voice_member_rx: broadcast::Receiver<String>,
+) -> anyhow::Result<()> {
     info!("VNOX Voice Node starting — node: {node_name}");
     info!("UDP bind: {bind}");
 
@@ -20,6 +27,7 @@ pub async fn run_bind(node_name: &str, bind: &str) -> anyhow::Result<()> {
     info!("voice node listening on {bind}");
 
     let channels = relay::new_channel_map();
+    let user_map = relay::new_user_map();
 
     let channels_cleanup = channels.clone();
     tokio::spawn(async move {
@@ -27,6 +35,42 @@ pub async fn run_bind(node_name: &str, bind: &str) -> anyhow::Result<()> {
         loop {
             interval.tick().await;
             relay::cleanup_stale(&channels_cleanup, Duration::from_secs(30)).await;
+        }
+    });
+
+    let channels_events = channels.clone();
+    let user_map_events = user_map.clone();
+    tokio::spawn(async move {
+        while let Ok(event_str) = voice_member_rx.recv().await {
+            if let Ok(event) = serde_json::from_str::<serde_json::Value>(&event_str) {
+                let event_type = event["type"].as_str().unwrap_or("");
+                let channel_id = event["channel_id"].as_str().unwrap_or("");
+                let user_id = event["user_id"].as_str().unwrap_or("");
+                match event_type {
+                    "join" => {
+                        let endpoint_str = match event["endpoint"].as_str() {
+                            Some(s) => s,
+                            None => continue,
+                        };
+                        let addr = match endpoint_str.parse::<SocketAddr>() {
+                            Ok(a) => a,
+                            Err(_) => continue,
+                        };
+                        relay::add_user_mapping(&user_map_events, user_id.to_string(), addr).await;
+                        if let Ok(ch) = channel_id.parse::<u64>() {
+                            relay::touch_member(&channels_events, ch, addr).await;
+                        }
+                    }
+                    "leave" => {
+                        if let Some(addr) =
+                            relay::remove_user_mapping(&user_map_events, user_id).await
+                        {
+                            relay::remove_member_from_all(&channels_events, &addr).await;
+                        }
+                    }
+                    _ => {}
+                }
+            }
         }
     });
 

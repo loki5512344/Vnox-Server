@@ -3,6 +3,7 @@ pub mod content;
 pub mod deliver;
 pub mod direct_message;
 pub mod dispatch;
+pub mod e2ee;
 pub mod friends;
 pub mod guild;
 pub mod run;

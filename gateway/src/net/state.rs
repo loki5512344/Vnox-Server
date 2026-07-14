@@ -34,6 +34,8 @@ pub struct State {
     pub rate_limiter: Arc<RateLimiter>,
     /// Gateway → voice-node membership bridge.
     pub voice_member_tx: Option<VoiceMemberTx>,
+    /// E2EE key store: user_id -> X25519 public key bytes
+    pub e2ee_keys: Arc<RwLock<HashMap<String, Vec<u8>>>>,
 }
 
 impl State {
@@ -66,6 +68,7 @@ impl State {
             channels_count,
             rate_limiter,
             voice_member_tx,
+            e2ee_keys: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 }

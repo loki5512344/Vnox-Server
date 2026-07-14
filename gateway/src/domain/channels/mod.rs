@@ -1,6 +1,6 @@
 pub mod ops;
 
-pub use ops::{create, delete, get_channel, join, leave, list, members};
+pub use ops::{create, delete, get_channel, join, leave, list, members, rename};
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;

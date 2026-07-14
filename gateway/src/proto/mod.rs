@@ -34,6 +34,7 @@ pub type LeaveChannelPayload = LeaveChannel;
 pub type ChannelStatePayload = ChannelState;
 pub type ChannelCreatePayload = ChannelCreate;
 pub type ChannelDeletePayload = ChannelDelete;
+pub type ChannelEditPayload = ChannelEdit;
 pub type ChannelListPayload = ChannelList;
 pub type UserJoinPayload = UserJoin;
 pub type UserLeavePayload = UserLeave;
@@ -96,6 +97,12 @@ pub type PresenceEventPayload = PresenceEvent;
 // Read/typing
 pub type ReadReceiptPayload = ReadReceipt;
 pub type TypingStartPayload = TypingStart;
+
+// E2EE
+pub type E2eeDmKeyExchangePayload = E2eeDmKeyExchange;
+pub type E2eeDmKeyExchangeAckPayload = E2eeDmKeyExchangeAck;
+pub type E2eeDmMessagePayload = E2eeDmMessage;
+pub type E2eeDmHistoryPayload = E2eeDmHistory;
 
 // Response types
 pub type ReadReceiptBroadcastPayload = ReadReceiptBroadcast;

@@ -58,6 +58,17 @@ pub async fn delete(store: &ChannelStore, channel_id: &str) -> bool {
     store.write().await.remove(channel_id).is_some()
 }
 
+/// Rename a channel in the store. Returns `true` if it existed.
+pub async fn rename(store: &ChannelStore, channel_id: &str, new_name: &str) -> bool {
+    let mut l = store.write().await;
+    if let Some(ch) = l.get_mut(channel_id) {
+        ch.name = new_name.to_string();
+        true
+    } else {
+        false
+    }
+}
+
 /// List all channels in the store.
 pub async fn list(store: &ChannelStore) -> Vec<Channel> {
     store.read().await.values().cloned().collect()
