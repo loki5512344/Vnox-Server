@@ -14,6 +14,20 @@ use crate::{
     },
 };
 
+fn valid_status(s: &str) -> bool {
+    matches!(
+        s,
+        "ONLINE" | "IDLE" | "DO_NOT_DISTURB" | "OFFLINE" | "INVISIBLE"
+    )
+}
+
+fn valid_activity_type(s: &str) -> bool {
+    matches!(
+        s,
+        "PLAYING" | "LISTENING" | "WATCHING" | "STREAMING" | "CUSTOM"
+    )
+}
+
 pub async fn handle_presence_update(
     _stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
@@ -27,11 +41,19 @@ pub async fn handle_presence_update(
         .await
         .ok_or_else(|| anyhow::anyhow!("session not found"))?;
 
+    let status = if valid_status(&req.status) {
+        req.status.clone()
+    } else {
+        "ONLINE".to_string()
+    };
+
+    let activity_type = req.activity_type.filter(|a| valid_activity_type(a));
+
     let info = PresenceInfo {
         user_id: sess.user_id.clone(),
         nickname: sess.nickname.clone(),
-        status: req.status.clone(),
-        activity_type: req.activity_type,
+        status: status.clone(),
+        activity_type: activity_type.clone(),
         activity_text: req.activity_text,
     };
 
@@ -41,7 +63,20 @@ pub async fn handle_presence_update(
         .await
         .insert(sess.user_id.clone(), info.clone());
 
-    // Broadcast to everyone (friends/guild-mates will filter client-side for now)
+    if let Err(e) = state
+        .storage
+        .save_presence(
+            &sess.user_id,
+            &sess.nickname,
+            &status,
+            activity_type.as_deref(),
+            info.activity_text.as_deref(),
+        )
+        .await
+    {
+        tracing::warn!("failed to save presence: {e}");
+    }
+
     let event = PresenceEventPayload {
         user_id: info.user_id,
         nickname: info.nickname,

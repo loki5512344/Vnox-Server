@@ -3,6 +3,7 @@ pub mod dms;
 pub mod e2ee_dms;
 pub mod guilds;
 pub mod messages;
+pub mod presence;
 pub mod social;
 
 use anyhow::Result;
@@ -146,7 +147,15 @@ impl Storage {
                         target_type TEXT, reason TEXT, changes TEXT,
                         created_at INTEGER NOT NULL
                      );
-                     CREATE INDEX IF NOT EXISTS idx_audit_guild ON audit_logs(guild_id, created_at);",
+                     CREATE INDEX IF NOT EXISTS idx_audit_guild ON audit_logs(guild_id, created_at);
+                     CREATE TABLE IF NOT EXISTS presences (
+                        user_id TEXT PRIMARY KEY,
+                        nickname TEXT NOT NULL,
+                        status TEXT NOT NULL DEFAULT 'OFFLINE',
+                        activity_type TEXT,
+                        activity_text TEXT,
+                        last_seen INTEGER NOT NULL
+                     );",
                 )
                 .execute(p)
                 .await?;
@@ -253,7 +262,15 @@ impl Storage {
                         target_type TEXT, reason TEXT, changes TEXT,
                         created_at BIGINT NOT NULL
                      );
-                     CREATE INDEX IF NOT EXISTS idx_audit_guild ON audit_logs(guild_id, created_at);",
+                     CREATE INDEX IF NOT EXISTS idx_audit_guild ON audit_logs(guild_id, created_at);
+                     CREATE TABLE IF NOT EXISTS presences (
+                        user_id TEXT PRIMARY KEY,
+                        nickname TEXT NOT NULL,
+                        status TEXT NOT NULL DEFAULT 'OFFLINE',
+                        activity_type TEXT,
+                        activity_text TEXT,
+                        last_seen BIGINT NOT NULL
+                     );",
                 )
                 .execute(p)
                 .await?;

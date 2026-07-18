@@ -14,7 +14,8 @@ use tokio::sync::broadcast;
 use tracing::{debug, error, info, warn};
 
 use domain::{channels, config, session, storage};
-use net::state::{State, VoiceMemberTx};
+use net::state::{BroadcastMsg, State, VoiceMemberTx};
+use proto::{PacketId, PresenceEventPayload, PresenceInfo, encode_packet, to_payload};
 
 pub async fn run(cfg: Arc<config::Config>, voice_member_tx: Option<VoiceMemberTx>) -> Result<()> {
     let private_mode = cfg.is_private();
@@ -75,6 +76,23 @@ pub async fn run(cfg: Arc<config::Config>, voice_member_tx: Option<VoiceMemberTx
         channels_count.clone(),
         voice_member_tx,
     );
+
+    if let Ok(rows) = state.storage.load_all_presences().await {
+        let mut presences = state.presences.write().await;
+        for row in rows {
+            presences.insert(
+                row.user_id.clone(),
+                PresenceInfo {
+                    user_id: row.user_id,
+                    nickname: row.nickname,
+                    status: row.status,
+                    activity_type: row.activity_type,
+                    activity_text: row.activity_text,
+                },
+            );
+        }
+        info!("loaded {} presences from storage", presences.len());
+    }
 
     let admin_bind = cfg
         .gateway
@@ -190,12 +208,62 @@ async fn handle<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         .await;
     }
 
+    let user_id = session::get(&state.sessions, &sid)
+        .await
+        .map(|s| s.user_id.clone());
+
+    if let Some(ref uid) = user_id {
+        state.presences.write().await.insert(
+            uid.clone(),
+            PresenceInfo {
+                user_id: uid.clone(),
+                nickname: String::new(),
+                status: "OFFLINE".into(),
+                activity_type: None,
+                activity_text: None,
+            },
+        );
+        let _ = state
+            .storage
+            .save_presence(uid, "", "OFFLINE", None, None)
+            .await;
+        let event = PresenceEventPayload {
+            user_id: uid.clone(),
+            nickname: String::new(),
+            status: "OFFLINE".into(),
+            activity_type: None,
+            activity_text: None,
+        };
+        let _ = state.broadcast.send(BroadcastMsg {
+            channel_id: None,
+            exclude_session: Some(sid.clone()),
+            target_session_id: None,
+            data: encode_packet(PacketId::PresenceEvent, 0, &to_payload(&event)),
+        });
+    }
+
     if let Some(ch) = session::get(&state.sessions, &sid)
         .await
         .and_then(|s| s.channel_id)
     {
+        let is_voice = channels::get_channel(&state.channels, &ch)
+            .await
+            .is_some_and(|c| c.kind == channels::ChannelKind::Voice);
+
         channels::leave(&state.channels, &ch, &sid).await;
         handler::channel::broadcast_leave(&state, &ch, &sid).await;
+
+        if is_voice
+            && let Some(tx) = &state.voice_member_tx
+            && let Some(ref uid) = user_id
+        {
+            let event = serde_json::json!({
+                "type": "leave",
+                "channel_id": ch,
+                "user_id": uid,
+            });
+            let _ = tx.send(event.to_string());
+        }
     }
     session::remove(&state.sessions, &sid).await;
     state
