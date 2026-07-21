@@ -17,6 +17,14 @@ use domain::{channels, config, session, storage};
 use net::state::{BroadcastMsg, State, VoiceMemberTx};
 use proto::{PacketId, PresenceEventPayload, PresenceInfo, encode_packet, to_payload};
 
+struct ConnGuard(Arc<AtomicUsize>);
+
+impl Drop for ConnGuard {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
 pub async fn run(cfg: Arc<config::Config>, voice_member_tx: Option<VoiceMemberTx>) -> Result<()> {
     let private_mode = cfg.is_private();
     if private_mode {
@@ -28,8 +36,10 @@ pub async fn run(cfg: Arc<config::Config>, voice_member_tx: Option<VoiceMemberTx
         "VNOX Gateway — node: {} addr: {} bind: {}",
         cfg.node.name, cfg.node.address, cfg.gateway.bind
     );
-    if let Some(limit) = cfg.gateway.max_connections {
-        info!("max_connections configured: {limit} (not enforced yet)");
+    let max_connections = cfg.gateway.max_connections;
+    let conn_count = Arc::new(AtomicUsize::new(0));
+    if let Some(limit) = max_connections {
+        info!("max_connections configured: {limit}");
     }
     let storage = match cfg.storage.backend.as_deref().unwrap_or("sqlite") {
         "postgres" => {
@@ -114,13 +124,19 @@ pub async fn run(cfg: Arc<config::Config>, voice_member_tx: Option<VoiceMemberTx
     info!("listening on {}", cfg.gateway.bind);
 
     if cfg.gateway.tls_enabled {
-        run_tls(listener, cfg, state).await
+        run_tls(listener, cfg, state, max_connections, conn_count).await
     } else {
-        run_plain(listener, state).await
+        run_plain(listener, state, max_connections, conn_count).await
     }
 }
 
-async fn run_tls(listener: TcpListener, cfg: Arc<config::Config>, state: State) -> Result<()> {
+async fn run_tls(
+    listener: TcpListener,
+    cfg: Arc<config::Config>,
+    state: State,
+    max_connections: Option<usize>,
+    conn_count: Arc<AtomicUsize>,
+) -> Result<()> {
     let (certs, key) = load_or_generate_tls_certs(&cfg.gateway)?;
     if cfg.gateway.tls_cert_path.is_none() {
         warn!("using self-signed TLS certificate — clients must accept it manually");
@@ -133,11 +149,20 @@ async fn run_tls(listener: TcpListener, cfg: Arc<config::Config>, state: State) 
     loop {
         match listener.accept().await {
             Ok((stream, addr)) => {
+                let current = conn_count.load(std::sync::atomic::Ordering::Relaxed);
+                if let Some(limit) = max_connections && current >= limit {
+                    warn!("connection rejected from {addr}: at max_connections ({limit})");
+                    drop(stream);
+                    continue;
+                }
+                conn_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 info!("connection from {addr} (TLS)");
                 state.metrics.inc(&state.metrics.connections_total);
                 let s = state.clone();
                 let acceptor = acceptor.clone();
+                let conn_count_clone = conn_count.clone();
                 tokio::spawn(async move {
+                    let _guard = ConnGuard(conn_count_clone);
                     match acceptor.accept(stream).await {
                         Ok(tls_stream) => {
                             if let Err(e) = handle(tls_stream, addr, s).await {
@@ -153,14 +178,28 @@ async fn run_tls(listener: TcpListener, cfg: Arc<config::Config>, state: State) 
     }
 }
 
-async fn run_plain(listener: TcpListener, state: State) -> Result<()> {
+async fn run_plain(
+    listener: TcpListener,
+    state: State,
+    max_connections: Option<usize>,
+    conn_count: Arc<AtomicUsize>,
+) -> Result<()> {
     loop {
         match listener.accept().await {
             Ok((stream, addr)) => {
+                let current = conn_count.load(std::sync::atomic::Ordering::Relaxed);
+                if let Some(limit) = max_connections && current >= limit {
+                    warn!("connection rejected from {addr}: at max_connections ({limit})");
+                    drop(stream);
+                    continue;
+                }
+                conn_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 info!("connection from {addr}");
                 state.metrics.inc(&state.metrics.connections_total);
                 let s = state.clone();
+                let conn_count_clone = conn_count.clone();
                 tokio::spawn(async move {
+                    let _guard = ConnGuard(conn_count_clone);
                     if let Err(e) = handle(stream, addr, s).await {
                         debug!("{addr} closed: {e}");
                     }

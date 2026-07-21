@@ -96,14 +96,16 @@ pub async fn handle_channel_create(
         return Ok(());
     }
 
-    let created = channels::create(&state.channels, &channel_id, &channel_name, kind.clone()).await;
+    let guild_id = req.guild_id.clone();
+
+    let created = channels::create(&state.channels, &channel_id, &channel_name, kind.clone(), guild_id.clone()).await;
 
     // Persist to DB (best-effort, log and continue on failure).
     #[allow(clippy::collapsible_if)]
     if created {
         if let Err(e) = state
             .storage
-            .create_channel(&channel_id, &channel_name, kind.as_str())
+            .create_channel(&channel_id, &channel_name, kind.as_str(), guild_id.as_deref())
             .await
         {
             warn!("failed to persist channel to storage: {e}");
@@ -140,6 +142,7 @@ pub async fn handle_channel_create(
         kind: kind.as_str().into(),
         members: Vec::new(),
         voice_endpoint: state.config.voice.bind.clone(),
+        guild_id: req.guild_id.clone(),
     };
     io::send_encrypted(
         stream,
@@ -249,25 +252,45 @@ pub async fn handle_channel_delete(
     Ok(())
 }
 
-/// Handle a ChannelList request — reply with all known channels.
+/// Handle a ChannelList request — reply with known channels, optionally filtered by guild_id.
 pub async fn handle_channel_list(
     stream: &mut (impl AsyncRead + AsyncWrite + Unpin),
     seq: &mut u32,
     session_id: &str,
+    payload: &[u8],
     crypto: &SessionCrypto,
     state: &State,
 ) -> Result<()> {
     let _sess = session::get(&state.sessions, session_id).await;
+
+    // Decode optional guild_id filter from request.
+    let filter_guild_id = if !payload.is_empty() {
+        let req = ChannelListPayload::decode(payload).ok();
+        req.and_then(|r| r.guild_id)
+    } else {
+        None
+    };
+
     let channels = channels::list(&state.channels).await;
     let items: Vec<ChannelListItem> = channels
         .iter()
+        .filter(|c| {
+            filter_guild_id
+                .as_ref()
+                .map(|gid| c.guild_id.as_deref() == Some(gid.as_str()))
+                .unwrap_or(true)
+        })
         .map(|c| ChannelListItem {
             channel_id: c.id.clone(),
             channel_name: c.name.clone(),
             kind: c.kind.as_str().into(),
+            guild_id: c.guild_id.clone(),
         })
         .collect();
-    let p = ChannelListPayload { channels: items };
+    let p = ChannelListPayload {
+        channels: items,
+        guild_id: None,
+    };
     io::send_encrypted(stream, PacketId::ChannelList, seq, &to_payload(&p), crypto).await?;
     Ok(())
 }

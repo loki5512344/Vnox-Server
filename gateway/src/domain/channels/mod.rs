@@ -26,6 +26,7 @@ pub struct Channel {
     pub id: String,
     pub name: String,
     pub kind: ChannelKind,
+    pub guild_id: Option<String>,
     pub members: HashSet<String>,
 }
 
@@ -39,6 +40,7 @@ pub fn new_store() -> ChannelStore {
             id: "general".into(),
             name: "general".into(),
             kind: ChannelKind::Text,
+            guild_id: None,
             members: HashSet::new(),
         },
     );
@@ -48,6 +50,7 @@ pub fn new_store() -> ChannelStore {
             id: "voice".into(),
             name: "voice".into(),
             kind: ChannelKind::Voice,
+            guild_id: None,
             members: HashSet::new(),
         },
     );

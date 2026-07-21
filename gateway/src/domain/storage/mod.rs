@@ -60,6 +60,7 @@ impl Storage {
                         id TEXT PRIMARY KEY,
                         name TEXT NOT NULL,
                         kind TEXT NOT NULL DEFAULT 'text',
+                        guild_id TEXT,
                         created_at INTEGER NOT NULL
                      );
                      CREATE TABLE IF NOT EXISTS bans (
@@ -175,6 +176,7 @@ impl Storage {
                         id TEXT PRIMARY KEY,
                         name TEXT NOT NULL,
                         kind TEXT NOT NULL DEFAULT 'text',
+                        guild_id TEXT,
                         created_at BIGINT NOT NULL
                      );
                      CREATE TABLE IF NOT EXISTS bans (
@@ -438,19 +440,21 @@ pub struct ChannelRecord {
     pub id: String,
     pub name: String,
     pub kind: String,
+    pub guild_id: Option<String>,
     pub created_at: i64,
 }
 
 impl Storage {
-    pub async fn create_channel(&self, id: &str, name: &str, kind: &str) -> Result<bool> {
+    pub async fn create_channel(&self, id: &str, name: &str, kind: &str, guild_id: Option<&str>) -> Result<bool> {
         match &self.pool {
             Pool::Sqlite(p) => {
                 let result = sqlx::query(
-                    "INSERT OR IGNORE INTO channels (id, name, kind, created_at) VALUES (?, ?, ?, ?)",
+                    "INSERT OR IGNORE INTO channels (id, name, kind, guild_id, created_at) VALUES (?, ?, ?, ?, ?)",
                 )
                 .bind(id)
                 .bind(name)
                 .bind(kind)
+                .bind(guild_id)
                 .bind(now_ms())
                 .execute(p)
                 .await?;
@@ -458,11 +462,12 @@ impl Storage {
             }
             Pool::Postgres(p) => {
                 let result = sqlx::query(
-                    "INSERT INTO channels (id, name, kind, created_at) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO NOTHING",
+                    "INSERT INTO channels (id, name, kind, guild_id, created_at) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO NOTHING",
                 )
                 .bind(id)
                 .bind(name)
                 .bind(kind)
+                .bind(guild_id)
                 .bind(now_ms())
                 .execute(p)
                 .await?;
@@ -514,15 +519,15 @@ impl Storage {
     pub async fn list_channels(&self) -> Result<Vec<ChannelRecord>> {
         let rows = match &self.pool {
             Pool::Sqlite(p) => {
-                sqlx::query_as::<_, (String, String, String, i64)>(
-                    "SELECT id, name, kind, created_at FROM channels",
+                sqlx::query_as::<_, (String, String, String, Option<String>, i64)>(
+                    "SELECT id, name, kind, guild_id, created_at FROM channels",
                 )
                 .fetch_all(p)
                 .await?
             }
             Pool::Postgres(p) => {
-                sqlx::query_as::<_, (String, String, String, i64)>(
-                    "SELECT id, name, kind, created_at FROM channels",
+                sqlx::query_as::<_, (String, String, String, Option<String>, i64)>(
+                    "SELECT id, name, kind, guild_id, created_at FROM channels",
                 )
                 .fetch_all(p)
                 .await?
@@ -530,10 +535,11 @@ impl Storage {
         };
         Ok(rows
             .into_iter()
-            .map(|(id, name, kind, created_at)| ChannelRecord {
+            .map(|(id, name, kind, guild_id, created_at)| ChannelRecord {
                 id,
                 name,
                 kind,
+                guild_id,
                 created_at,
             })
             .collect())
@@ -546,7 +552,7 @@ impl Storage {
                 "voice" => ChannelKind::Voice,
                 _ => ChannelKind::Text,
             };
-            crate::domain::channels::create(channel_store, &ch.id, &ch.name, kind).await;
+            crate::domain::channels::create(channel_store, &ch.id, &ch.name, kind, ch.guild_id).await;
         }
         Ok(())
     }

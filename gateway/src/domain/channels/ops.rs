@@ -36,6 +36,7 @@ pub async fn create(
     channel_id: &str,
     channel_name: &str,
     kind: ChannelKind,
+    guild_id: Option<String>,
 ) -> bool {
     let mut l = store.write().await;
     if l.contains_key(channel_id) {
@@ -47,6 +48,7 @@ pub async fn create(
             id: channel_id.to_string(),
             name: channel_name.to_string(),
             kind,
+            guild_id,
             members: std::collections::HashSet::new(),
         },
     );

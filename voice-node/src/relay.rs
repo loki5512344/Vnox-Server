@@ -123,3 +123,97 @@ pub async fn remove_member_from_all(channels: &ChannelMap, addr: &SocketAddr) {
         !state.members.is_empty()
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::SocketAddr;
+    use std::str::FromStr;
+
+    fn test_addr(n: u8) -> SocketAddr {
+        SocketAddr::from_str(&format!("127.0.0.{n}:5000")).unwrap()
+    }
+
+    #[tokio::test]
+    async fn push_and_touch_creates_channel() {
+        let channels = new_channel_map();
+        let addr = test_addr(1);
+        touch_member(&channels, 42, addr).await;
+        {
+            let lock = channels.read().await;
+            let state = lock.get(&42).unwrap();
+            assert!(state.members.contains_key(&addr));
+            assert!(state.jitter.is_empty());
+        }
+    }
+
+    #[tokio::test]
+    async fn push_packet_adds_to_jitter() {
+        let channels = new_channel_map();
+        let addr = test_addr(1);
+        touch_member(&channels, 7, addr).await;
+        push_packet(&channels, 7, addr, 1, 1000, b"opus data", 0).await;
+        {
+            let lock = channels.read().await;
+            let state = lock.get(&7).unwrap();
+            assert_eq!(state.jitter.len(), 1);
+        }
+    }
+
+    #[tokio::test]
+    async fn remove_member_cleans_up_empty_channel() {
+        let channels = new_channel_map();
+        let addr = test_addr(1);
+        touch_member(&channels, 99, addr).await;
+        remove_member_from_all(&channels, &addr).await;
+        {
+            let lock = channels.read().await;
+            assert!(lock.is_empty());
+        }
+    }
+
+    #[tokio::test]
+    async fn remove_member_keeps_non_empty_channel() {
+        let channels = new_channel_map();
+        let addr1 = test_addr(1);
+        let addr2 = test_addr(2);
+        touch_member(&channels, 99, addr1).await;
+        touch_member(&channels, 99, addr2).await;
+        remove_member_from_all(&channels, &addr1).await;
+        {
+            let lock = channels.read().await;
+            let state = lock.get(&99).unwrap();
+            assert!(!state.members.contains_key(&addr1));
+            assert!(state.members.contains_key(&addr2));
+        }
+    }
+
+    #[tokio::test]
+    async fn cleanup_stale_removes_idle_members() {
+        let channels = new_channel_map();
+        let addr = test_addr(1);
+        touch_member(&channels, 5, addr).await;
+        cleanup_stale(&channels, Duration::ZERO).await;
+        {
+            let lock = channels.read().await;
+            assert!(lock.is_empty());
+        }
+    }
+
+    #[test]
+    fn voice_header_parse_valid() {
+        let mut buf = vec![0u8; crate::VOICE_HDR_SIZE];
+        buf[0..2].copy_from_slice(&10u16.to_be_bytes());
+        buf[4..8].copy_from_slice(&42u32.to_be_bytes());
+        buf[12..20].copy_from_slice(&7u64.to_be_bytes());
+        let hdr = crate::VoiceHeader::parse(&buf).unwrap();
+        assert_eq!(hdr.packet_id, 10);
+        assert_eq!(hdr.voice_seq, 42);
+        assert_eq!(hdr.channel_id, 7);
+    }
+
+    #[test]
+    fn voice_header_parse_too_short() {
+        assert!(crate::VoiceHeader::parse(&[0; 10]).is_none());
+    }
+}

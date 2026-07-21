@@ -78,8 +78,15 @@ pub async fn dispatch<S: AsyncRead + AsyncWrite + Unpin>(
             .await?;
         }
         PacketId::ChannelList => {
-            channel::handle_channel_list(ctx.stream, ctx.seq, session_id, ctx.crypto, ctx.state)
-                .await?;
+            channel::handle_channel_list(
+                ctx.stream,
+                ctx.seq,
+                session_id,
+                payload,
+                ctx.crypto,
+                ctx.state,
+            )
+            .await?;
         }
         PacketId::ChatMessage => {
             let m = ChatMessagePayload::decode(payload)?;

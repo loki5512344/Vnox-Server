@@ -80,6 +80,7 @@ pub async fn join(
         kind: ch.kind.as_str().into(),
         members,
         voice_endpoint: state.config.voice.bind.clone(),
+        guild_id: ch.guild_id.clone(),
     };
     io::send_encrypted(
         stream,

@@ -47,6 +47,7 @@ message ChannelState {
   string          kind           = 3;
   repeated MemberInfo members    = 4;
   string          voice_endpoint = 5;
+  optional string guild_id       = 6;
 }
 
 message MemberInfo {
@@ -69,12 +70,16 @@ message ChannelEdit {
   string channel_name = 2;
 }
 
-message ChannelList { repeated ChannelListItem channels = 1; }
+message ChannelList {
+  repeated ChannelListItem channels = 1;
+  optional string          guild_id = 2;
+}
 
 message ChannelListItem {
-  string channel_id   = 1;
-  string channel_name = 2;
-  string kind         = 3;
+  string          channel_id   = 1;
+  string          channel_name = 2;
+  string          kind         = 3;
+  optional string guild_id     = 4;
 }
 
 message UserJoin  { string channel_id = 1; string user_id = 2; string nickname = 3; }
